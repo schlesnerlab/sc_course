@@ -1,0 +1,245 @@
+---
+title: "Package Installation"
+
+output:
+  html_document:
+    theme: spacelab
+    highlight: pygments
+    code_folding: show
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    df_print: paged
+---
+
+<link rel="stylesheet" href="headers.css">
+
+```{r setup}
+knitr::opts_chunk$set(eval = FALSE, format = TRUE)
+options(warn = -1)
+```
+
+> Thanks for taking the time to do this before the course!
+
+We'll be downloading the source of this text you're reading now.
+The first time you open this on RStudio IDE, a yellow sign will tell ask you to install some packages.
+This is a very smart feature, and convenient.
+But before going forward with it, please keep reading... just leave the yellow sign opened over there...
+
+# Working Directory
+
+Download all the course RMarkdown documents in a zip file from [the repository at GitHub](https://github.com/maxplanck-ie/Rseurat/archive/refs/heads/main.zip).
+Put it in a folder, any folder but outside the `/home` partition!
+You will find all the lectures under `rmd/` subfolder.
+On the root you'll find an `Rproj` file, so you should **open the corresponding path as an existing project folder** in RStudio IDE. You should follow the next instructions using the 'raw' `./rmd/10_PkgInstall.Rmd` file now.
+Remember to READ ALL THE INSTRUCTIONS, the following installation steps are rather sensitive.
+So, unfortunately, it's not a matter of going ahead clicking the `Run` button in each RMarkdown code block and just get all the process done.
+Expect to see error messages!
+
+# Installation
+## Steps
+
+### Important Notes
+
+-   Ensure you're running R `4.3.0`. The following procedure wasn't tested with recent versions.
+-   Run each of the code blocks manually, and ensure there were no errors before moving forward.
+-   Watch out for possible errors. It would be wise to keep an eye on the text output at all time.
+-   To emphasize the last item, let's rephrase it: shouldn't be a surprise if you have a compilation error message in the middle of the whole text output.
+-   If asked to update packages, answer 'none'. We'll take care of package updates near the end.
+-   If asked to compile packages, answer 'no'.
+-   All code blocks may be executed more than once, if the packages are installed, there's no increase in the total duration of this whole process. So, do run them a couple of times before moving forward to the next block.
+-   If you see errors, re-run the code block again.
+
+
+
+```{=html}
+<!--
+TODO: explain setting RSTUDIO_WHICH_R=... R_LIBS=...
+
+#### Important note for those working on their laptops
+
+If you don't know Conda, just ignore this. If you do have it set up, and have a bare minimum experience with it, you may go ahead and create an environment using the YAML file under the `configs/` subfolder of this repo. -->
+```
+### Package Installation per-se
+
+Now would be a good time to click the 'Install' button in the yellow bar on top of this Rmarkdown file, if opened on Rstudio.
+This will install some of the auto-detected packages (BiocManager, knitr, remotes, Seurat, among other.)
+
+Wait until this process finishes completely before moving forward.
+On the following steps, we'd be 're-installing' some of these packages.
+You can go ahead and run the code cells anyway, we'd rather you do that instead of guessing and skipping... which could be prone to errors.
+Also, the functions (unless explicitly told) won't re-install if the pkg is already there...
+
+### Bioconductor
+
+Our first installation is in regards to the core packages of Bioconductor, a repository of bioinformatic packages, just like CRAN (which also has bioinformatic packages).
+The difference is that instead of GNU Public License, Bioc packages are under a license that allows commercial usage, widening its user-base (e.g. including private hospitals).
+
+```{r BiocManager}
+if (!"BiocManager" %in% installed.packages()) install.packages("BiocManager")
+```
+
+With `BiocManager`, we can install Bioconductor `3.14`.
+If you are using R 4.2 or 4.3, then you'd be looking for a newest release, see the [official release announcements](https://bioconductor.org/about/release-announcements/) to find your matching version.
+If you really need it, you may use bioconductor `3.16`, but these lectures were only tested with the versions we are recommending (4.1.3 & 3.14).
+
+```{r bioc314}
+BiocManager::install()
+```
+
+> You can ignore the message:
+>
+>     Bioconductor version 3.14 (BiocManager
+>       1.30.20), R 4.1.3 (2022-03-10)
+>     Installation paths not writeable, unable to
+>       update packages
+>       path: /opt/R/4.1.3/lib/R/library
+>       packages:
+>         boot, class, cluster, codetools, foreign,
+>         MASS, Matrix, mgcv, nlme, nnet, rpart,
+>         spatial, survival
+
+### Core & Dependencies
+
+The next code block defines a function, `retrieve_namespaces()`, that takes a character vector with package names, to be installed.
+If the execution of the whole function is not interrupted by an error, it will simply return `TRUE`.
+
+```{r retrieve_namespaces}
+retrieve_namespaces <- function(list_of_packages) {
+  lapply(
+    list_of_packages,
+    function(x) {
+      if (!x %in% installed.packages()) {
+        suppressMessages(
+          BiocManager::install(x,
+            ask = FALSE, update = FALSE
+          )
+        )
+      }
+    }
+  )
+  TRUE
+}
+```
+
+Let's use it.
+We are going to install [Seurat](https://satijalab.org/seurat/) as well as many other tools and dependencies that we will need throughout this course.
+The whole process is going to take 10-15 minutes... and, most probably, more than just one single execution.
+
+```{r}
+retrieve_namespaces(
+  list_of_packages = c(
+    # Core
+    "Seurat",
+    "tidyverse",
+    "future",
+    # DE
+    "enrichR",
+    "glmGamPoi",
+    "DESeq2",
+    "limma",
+    "MAST",
+    "multtest",
+    "metap",
+    # Viz
+    "Nebulosa",
+    "RColorBrewer",
+    "patchwork",
+    "pheatmap",
+    # Utilities
+    "shiny",
+    "remotes",
+    # Rendering to HTML/ Site
+    "knitr",
+    "rmarkdown",
+    "markdown",
+    "styler",
+    "formatR"
+  )
+)
+```
+
+Sometimes, there are errors while installing packages in bulk that are easily solved by re-iterating the command.
+These error messages are difficult to track, since we get so much output from the ongoing process.
+Installing 10-20 packages may look as a simple activity, but that's not the case when we consider all the dependencies between them.
+
+**Re-run the previous code block 2-3 times until its only output is: `TRUE`.**
+
+
+
+```{=html}
+<!-- SKIP
+
+Finally, we are going to use another package that is only available on GitHub and not on either Bioconductor or CRAN repositories. Install it with:
+
+``{r}
+if (!"kBET" %in% installed.packages()) remotes::install_github("theislab/kBET")
+`` -->
+```
+### Consistency
+
+-   Finally, we want our installation to be coherent:
+
+```{r}
+BiocManager::valid()
+```
+
+If the above code block outputs anything different to `TRUE`, it's because according to BiocManager our current state is not valid.
+To fix it, you should run the `BiocManager::install()` command as it's stated in the output message.
+
+## Check Installation
+
+```{r}
+library(Seurat)
+packageVersion("Seurat")
+```
+
+We'll be working with Seurat version 4.
+
+# Datasets
+
+R packages bundle data with them, usually for testing purposes.
+
+In the case of `Seurat`, there is a package (`SeuratData`) specifically designed to download some datasets.
+You may use `SeuratData::AvailableData()` to get a table of all these 'educational' datasets.
+Let's get a dataset:
+``{=html}
+<!-- SKIP
+
+On Bioconductor, there's an analog meta-package, called `scRNAseq`, that allows you to download another datasets. You can use `scRNAseq::listDatasets()` to get a table of all these 'educational' datasets. Let's install it:
+
+``{r}
+if (!"scRNAseq" %in% installed.packages()) {
+  BiocManager::install("scRNAseq", ask = FALSE, update = FALSE)
+}
+`` -->
+```
+## Download preprocessed datasets from zenodo
+
+For the later part of the course, we have preprocessed a couple of large datasets.
+Depending on where you will be working, there are two alternative ways now.
+So, if you are a Workbench user, go to the next subtitle.
+
+If you will be using RStudio from your laptop, then you may download from zenodo:
+
+1.  ["datasets/preprocessed_rds/panc_sub.RDS"](https://zenodo.org/record/7891484/files/panc_sub_processed.RDS?download=1)
+
+```{=html}
+<!-- SKIP, correspond to 40* in archived Rmds
+1. ["datasets/preprocessed_rds/ref.labels.RDS"](https://zenodo.org/record/7866848/files/pbmc_ref_sce_sel.RDS?download=1)
+1. ["datasets/preprocessed_rds/pbmc_ref.seurat.RDS"](https://zenodo.org/record/7866848/files/pbmc_ref.seurat.sel.RDS?download=1) -->
+```
+Depending on your bandwidth, the downloads may take a couple of minutes.
+
+### OS-specific instructions
+
+On Linux, you'd need to install either `libhdf5-dev` (ubuntu) or `hdf5-devel` (centos), depending on your distribution.
+The actual name of the package could also change with your release distribution (e.g. ubuntu 18/ bionic versus 20/ focal).
+
+On OSX, you'd need to install [Homebrew](https://brew.sh/) first, and then run `$ brew install hdf5`.
+
+On Windows, there are two options: one would be installing miniconda.
+Or, the most straightforward would probably be using [WSL2](https://learn.microsoft.com/en-us/windows/wsl/about), and then following instructions for Ubuntu Linux (you may choose another distro, but we recommend you start with Ubuntu).
+
+<!-- Note to teachers: be sure to keep up to date the zenodo links in here + in deploy.yml + the files at deep19:/scratch/local/rseurat/datasets/preprocessed_rds/ -->
+

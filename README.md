@@ -29,3 +29,6 @@ Some very basic R knowledge is assumed. If you are not familiar with the R stati
 ·	Merging datasets and dealing with batch effects
 ·	Deciding whether or not to use integration
 ·	Differential expression analysis 
+
+
+Course Material Adapted from https://github.com/maxplanck-ie/Rseurat
