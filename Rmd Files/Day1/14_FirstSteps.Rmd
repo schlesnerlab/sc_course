@@ -41,6 +41,8 @@ Try this: restart R (<code>Ctrl+Shift+F10</code>), and then execute in the Conso
 suppressMessages({
   library(tidyverse)
   library(Seurat)
+  library(tidyverse)
+  library(scDblFinder)
 })
 
 
@@ -65,12 +67,12 @@ cat("library path(s): ", .libPaths())
 
 # Load Data
 
-We will be analyzing a dataset of Peripheral Blood Mononuclear Cells (PBMC) freely available from 10X Genomics.
+We will be analyzing a dataset of Peripheral Blood Mononuclear Cells (sample) freely available from 10X Genomics.
 There are 2700 single cells that were sequenced with Illumina and aligned to the human transcriptome.
 
 For further details on the primary analysis pipeline that gives you the count data, please head over to [cellranger website](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger).
 
-The raw data can be found [here](https://cf.10xgenomics.com/samples/cell/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz), and you have already downloaded it with the repository Zip file.
+The raw data can be found [here](https://cf.10xgenomics.com/samples/cell/sample3k/sample3k_filtered_gene_bc_matrices.tar.gz), and you have already downloaded it with the repository Zip file.
 This dataset consists of 3 files:
 
 -   `matrix.mtx`: **count matrix** represents the number of molecules for each gene (row) that are detected in each cell (column).
@@ -80,21 +82,68 @@ This dataset consists of 3 files:
 For now we assume that this data resides in a directory `datasets/filtered_gene_bc_matrices/hg19` (relative to this current markdown file).
 We can read this with a single command:
 
-```{r read10x}
-pbmc.data <- Read10X(data.dir = "./datasets/filtered_gene_bc_matrices/hg19/")
+```{r download from geo}
+options(timeout = max(300, getOption("timeout")))
+options(download.file.method.GEOquery = "wget")
+#GEOquery::getGEOSuppFiles("GSE205771",baseDir = "/omics/groups/OE0436/internal/heyer/scourse/sc_course/data/",)
+
 ```
+
+#  Quality control {.unnumbered}
+
+```{r}
+#| eval: false
+#| 
+# Enrique Blanco Carmona
+# e.blancocarmona@kitz-heidelberg.de
+# PhD Student – Clinical Bioinformatics
+# Division of Pediatric Neurooncology (B062)
+# DKFZ-KiTZ | Germany
+
+#--------------------------------------------------------------------
+# 1 - READ IN COUNT MATRICES AND INDIVIDUAL QC
+#--------------------------------------------------------------------
+
+# ------------------------------------------------------------------
+# All the following code including doublet detection has to be run
+# for each sample individually.
+# ------------------------------------------------------------------
+
+# Global parameters. Used throughout the whole analysis.
+sample_name <- "OE0145-IDH_NCH6341" # Name of the sample.
+
+# Load samples.
+mt_pattern <- "^MT-"
+sample_path <- "/omics/groups/OE0436/internal/heyer/scourse/sc_course/data/filtered/BT322.filtered_gene_matrices" # Path to where the count matrix from cellranger (either filtered or raw, your choice) is located.
+
+
+# Read the count matrix and generate a Seurat object.
+#sample <- Seurat::Read10X(data.dir = sample_path) %>%
+#      		Seurat::CreateSeuratObject(project = sample_name, min.cells = 3, min.features = 200)
+
+sample <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
+Seurat::DefaultAssay(sample) <- "RNA"
+#count_mat <- read
+
+sample@meta.data$orig.ident %>% unique()
+sample <- sample[,sample$orig.ident == "OE0145-IDH_NCH6341" ]
+# Compute percentage of mitochondrial RNA in the cells.
+sample[["percent.mt"]] <- Seurat::PercentageFeatureSet(object = sample,assay = "RNA",
+                                                       pattern = mt_pattern)
+
+
+#sample <- sample[, mask] # Subset the sample.
+```
+
 
 This data is extremely big and sparse, this variable is now an object of type `dgCMatrix`.
 Lets examine a few genes in the first thirty cells:
 
-```{r explore1}
-pbmc.data[c("CD3D", "TCL1A", "MS4A1"), 1:30]
-```
 
 And, we can have a heatmap of the first few genes and cells:
 
 ```{r explore2, echo=FALSE, out.width="50%"}
-pheatmap::pheatmap(log10(pbmc.data[1:500, 1:200] + 1),
+pheatmap::pheatmap(log10(sample[1:500, 1:200]@assays$RNA$counts + 1),
   show_rownames = F,
   show_colnames = F,
   cluster_rows = F,
@@ -122,15 +171,7 @@ pheatmap::pheatmap(log10(pbmc.data[1:500, 1:200] + 1),
 Initialize the Seurat object with the raw (non-normalized data):
 
 ```{r createSeurat}
-(
-  pbmc <-
-    CreateSeuratObject(
-      counts = pbmc.data,
-      project = "pbmc3k",
-      min.cells = 3,
-      min.features = 200
-    ) %>% suppressWarnings()
-) # extra outer pair of parenthesis mean 'print()'
+
 ```
 
 > **Note:** usually on any data science context, we refer to our columns as features.
@@ -142,13 +183,13 @@ We are only loading cells with at least 200 genes detected, and we are only incl
 With these filters in this particular dataset, we are reducing the number of genes from `33000` to `14000`.
 
 The `SeuratObject` serves as a container that contains both data (like the count matrix) and analysis (like PCA, or clustering results) for a single-cell dataset.
-For example, the count matrix is stored in `pbmc[["RNA"]]@counts`.
-On RStudio, you can use `View(pbmc)` to inspect all the slots.
+For example, the count matrix is stored in `sample[["RNA"]]@counts`.
+On RStudio, you can use `View(sample)` to inspect all the slots.
 
 > 🧭✨ Poll:
 >
 > In cell "AAATTCGATTCTCA-1", how many reads map to gene "ACTB"?
-> Hint: subset the assay data, `pbmc@assays$RNA`.
+> Hint: subset the assay data, `sample@assays$RNA`.
 
 At the top level, `SeuratObject` serves as a collection of `Assay` and `DimReduc` objects, representing expression data and dimensional reductions of the expression data, respectively.
 The `Assay` objects are designed to hold expression data of a single type, such as RNA-seq gene expression, CITE-seq ADTs, cell hashtags, or imputed gene values.
@@ -196,7 +237,7 @@ The number of unique genes and total molecules are automatically calculated duri
 You can find them stored in the object `meta.data`, let's see for the first 5 cells:
 
 ```{r metadata}
-pbmc@meta.data %>% head(5)
+sample@meta.data %>% head(5)
 ```
 
 The `@` operator we just used, is for accessing the slot on the object.
@@ -205,7 +246,8 @@ The `[[` operator can add columns to object metadata.
 This is a great place to stash additional QC stats:
 
 ```{r getMT}
-pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+#library(Seurat)
+sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
 ```
 
 `PercentageFeatureSet()` function calculates the percentage of counts originating from a set of features.
@@ -215,8 +257,14 @@ So we give this as pattern (aka *regular expression*).
 Let's visualize the distribution of these metrics over all cells (as Violin plots):
 
 ```{r vlnplot}
+do_ViolinPlot(
+  sample,
+  features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
+  ncol = 3, group.by = "orig.ident"
+)
+
 VlnPlot(
-  pbmc,
+  sample,
   features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
   ncol = 3
 )
@@ -233,10 +281,10 @@ Therefore it is useful to look a relationship between these variables.
 All those are **features**
 
 ```{r featurescatter}
-plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
-plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-plot3 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "ACTB")
-plot1 + plot2
+plot1 <- FeatureScatter(sample, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "orig.ident")
+plot2 <- FeatureScatter(sample, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "orig.ident")
+plot3 <- FeatureScatter(sample, feature1 = "nCount_RNA", feature2 = "SPARCL1",slot = "counts", group.by = "orig.ident")
+plot1 / plot2
 plot3
 ```
 
@@ -251,21 +299,65 @@ In this case, based on the previous Violin plots, we'll use the following criter
 -   $>5%$ mitochondrial counts.
 
 ```{r filter, echo=FALSE}
-pbmc <- pbmc %>% subset(nFeature_RNA > 200 &
-  nFeature_RNA < 2500 &
-  percent.mt < 5)
+
+# Perform QC on the sample.
+# Get cutoffs.
+counts_lower_cutoff <- 1000 # Minimum amount of UMIs per cell.
+genes_lower_cutoff <- 500 # Minimum amount of genes per cell.
+mito_higher_cutoff <- 5 # Maximum amount of mitochondrial RNA per cell.
+
+# Generate the first subset.
+count_mask <- sample$nCount_RNA > counts_lower_cutoff
+gene_mask <- sample$nFeature_RNA > genes_lower_cutoff
+mito_mask <- sample$percent.mt < mito_higher_cutoff
+mask <- count_mask & gene_mask & mito_mask
+summary(mask)
+sample <- sample[, mask] # Subset the sample.
+
+# Upper cutoffs are determined by the mean and standard deviation of the remaining cells.
+counts_higher_cutoff <- mean(sample$nCount_RNA) + 3 * stats::sd(sample$nCount_RNA)
+genes_higher_cutoff <- mean(sample$nFeature_RNA) + 3 * stats::sd(sample$nFeature_RNA)
+
+
+# Second subset based on the mean and standard deviation of the remaining cells.
+count_mask <- sample$nCount_RNA < counts_higher_cutoff
+gene_mask <- sample$nFeature_RNA < genes_higher_cutoff
+mask <- count_mask & gene_mask
+summary(mask)
+
+sample <- sample[,mask]
 ```
 
 > 🧭✨ Poll: What's the current number of cells after this step?
+
+## Doublet Finding
+
+Checking for doublets
+
+```{r}
+
+sce = scDblFinder(
+    SingleCellExperiment(
+        list(counts=sample@assays$RNA$counts),
+    ) 
+)
+doublet_score = sce$scDblFinder.score
+doublet_class = sce$scDblFinder.class
+sample$scDblFinder.score <- sce$scDblFinder.score
+sample$scDblFinder.class <- sce$scDblFinder.class
+hist(sample$scDblFinder.score, breaks = "FD")
+FeatureScatter(sample, feature1 = "nCount_RNA", feature2 = "nFeature_RNA",group.by = "scDblFinder.class")
+```
+
 
 ## Normalization
 
 After removing unwanted cells from the dataset, the next step is to normalize the data.
 By default, we employ a global-scaling normalization method "LogNormalize" that normalizes the feature expression measurements for each cell by the total expression, multiplies this by a scale factor (10000 by default), and log-transforms the result.
-Normalized values are stored in `pbmc[["RNA"]]@data`.
+Normalized values are stored in `sample[["RNA"]]@data`.
 
 ```{r norm}
-pbmc <- NormalizeData(pbmc)
+sample <- NormalizeData(sample,)
 ```
 
 ## Informative Genes
@@ -284,7 +376,7 @@ These will be used downstream in dimensional reductions like PCA.
 <!--Some relevant publications for Feature selection and its importance are: [[1](https://www.nature.com/articles/nmeth.2645)], and [[2](https://doi.org/10.1016/j.cell.2019.05.031)].-->
 
 ```{r HVG}
-pbmc <- FindVariableFeatures(pbmc)
+sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000) 
 ```
 
 <!--Note that there's also the `selection.method = "mvp"` that identifies variable features while controlling for the strong relationship between variability and average expression.-->
@@ -300,7 +392,7 @@ pbmc <- FindVariableFeatures(pbmc)
 Plot variable features:
 
 ```{r HVG_plot}
-(plot1 <- VariableFeaturePlot(pbmc))
+(plot1 <- VariableFeaturePlot(sample))
 ```
 
 Now with labels, taking top10 genes as in the recent question:
@@ -309,7 +401,7 @@ Now with labels, taking top10 genes as in the recent question:
 (plot2 <-
   LabelPoints(
     plot = plot1,
-    points = head(VariableFeatures(pbmc), 10),
+    points = head(VariableFeatures(sample), 10),
     repel = TRUE
   ))
 ```
@@ -322,10 +414,10 @@ The `ScaleData()` function:
 -   Shifts the expression of each gene, so that the mean expression across cells is `0`
 -   Scales the expression of each gene, so that the variance across cells is `1`. This step gives equal weight in downstream analyses, so that highly-expressed genes do not dominate.
 -   more generally one can also model the mean expression as a function of other variables from the metadata, i.e. *regress them out* before scaling the residuals (see: `vars.to.regress`)
--   The results of this are stored in `pbmc[["RNA"]]@scale.data`
+-   The results of this are stored in `sample[["RNA"]]@scale.data`
 
 ```{r scaledata}
-pbmc <- ScaleData(pbmc, features = rownames(pbmc))
+sample <- ScaleData(sample, features = rownames(sample))
 ```
 
 # Dimensional Reduction
@@ -334,7 +426,7 @@ Next we perform PCA on the scaled data.
 By default, only the previously determined variable features are used as input, but can be defined using features argument if you wish to choose a different subset.
 
 ```{r runpca}
-pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+sample <- RunPCA(sample, features = VariableFeatures(object = sample))
 ```
 
 > Do you feel like you need a refresher on PCA?
@@ -344,15 +436,18 @@ pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
 Examine and visualize PCA results a few different ways:
 
 ```{r dimplot}
-DimPlot(pbmc, reduction = "pca") + NoLegend()
+DimPlot(sample, reduction = "pca",group.by = "scDblFinder.class") + NoLegend()
+
+# Alternative SCPubr Plotting function
+do_DimPlot(sample, reduction = "pca", group.by = "scDblFinder.class",plot.axes = T)
 ```
 
 ```{r printpca}
-print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
+print(sample[["pca"]], dims = 1:5, nfeatures = 5)
 ```
 
 ```{r vizdimloadings}
-VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+VizDimLoadings(sample, dims = 1:2, reduction = "pca")
 ```
 
 In particular `DimHeatmap()` allows for easy exploration of the primary sources of heterogeneity in a dataset, and can be useful when trying to decide which PCs to include for further downstream analyses.
@@ -361,7 +456,7 @@ Setting cells to a number plots the 'extreme' cells on both ends of the spectrum
 Though clearly a supervised analysis, we find this to be a valuable tool for exploring correlated feature sets.
 
 ```{r dimheatmap}
-DimHeatmap(pbmc, dims = 1:9, cells = 500, balanced = TRUE)
+DimHeatmap(sample, dims = 1:9, cells = 500, balanced = TRUE)
 ```
 
 To overcome the extensive technical noise in any single gene for scRNA-seq data, Seurat clusters cells based on their PCA scores.
@@ -371,7 +466,7 @@ The top principal components therefore represent a robust compression of the dat
 One quick way to determine the 'dimensionality' of the dataset is by eyeballing how the percentage of variance explained decreases:
 
 ```{r elbowplot}
-ElbowPlot(pbmc)
+ElbowPlot(sample)
 ```
 
 > 🧭✨ Poll: How many components should we choose to include?
@@ -386,41 +481,45 @@ Also, if your research questions aim towards rare celltypes, you may definitely 
 Let's have a look again into the values we got in `percent.mt`:
 
 ```{r}
-hist(pbmc$percent.mt)
+hist(sample$percent.mt)
 ```
 
 ```{r}
-summary(pbmc$percent.mt)
+summary(sample$percent.mt)
 ```
 
 Now, let's add a column annotating samples with low, medium or high `percent.mt`
 
 ```{r}
-pbmc$mt.categories <- NA
+sample$mt.categories <- NA
 
-pbmc$mt.categories[pbmc$percent.mt <= 1.520] <- "Low"
-pbmc$mt.categories[pbmc$percent.mt > 1.520 &
-                     pbmc$percent.mt <= 2.591 ] <- "Medium"
-pbmc$mt.categories[pbmc$percent.mt > 2.591] <- "High"
+sample$mt.categories[sample$percent.mt <= 1] <- "Low"
+sample$mt.categories[sample$percent.mt > 1 &
+                     sample$percent.mt <= 3 ] <- "Medium"
+sample$mt.categories[sample$percent.mt > 3] <- "High"
 
-stopifnot(all(! is.na(pbmc$percent.mt)))
+stopifnot(all(! is.na(sample$percent.mt)))
 ```
 
 Let's explore what we just did:
 
 ```{r mt_categories}
-VlnPlot(pbmc,
+VlnPlot(sample,
   features = "percent.mt",
   group.by = "mt.categories",
   sort = "decreasing"
 ) +
   ggtitle(NULL) + NoLegend()
+
+# Alternative with SCpubR
+do_ViolinPlot(sample, features = "percent.mt", group.by = "mt.categories",)
 ```
 
 Finally, we are able to plot PCA, and have shape by these categories:
 
 ```{r}
-DimPlot(pbmc, shape.by = "mt.categories")
+DimPlot(sample, shape.by = "mt.categories")
+do_DimPlot(sample,reduction = "pca", group.by = "mt.categories")
 ```
 
 What about using colors?
@@ -430,7 +529,7 @@ There is a variable (actually, it's a slot) inside it, called `active.ident`.
 To access or set this to different values (e.g. metadata columns) we use the `Idents()` function:
 
 ```{r}
-Idents(pbmc) %>% head(3)
+Idents(sample) %>% head(3)
 ```
 
 By default, all our cells have one single value, that was set while creating the Seurat object in our early steps.
@@ -438,11 +537,37 @@ By default, all our cells have one single value, that was set while creating the
 Let's set our new metadata column as the new active identity, and let `DimPlot` play out it's straightforward behavior:
 
 ```{r}
-Idents(pbmc) <- "mt.categories"
+Idents(sample) <- "mt.categories"
 
-DimPlot(pbmc)
+DimPlot(sample)
 ```
 
+# Cell Cycle Regression 
+```{r}
+# Get S phase genes.
+s.genes <- Seurat::cc.genes.updated.2019$s.genes
+# Get G2-M phase genes.
+g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
+
+sample <- CellCycleScoring(sample, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+
+#RidgePlot(sample, features =, ncol = 2,assay = "RNA",layer = "counts")
+```
+
+
+```{r}
+sample <- RunPCA(sample, features = c(s.genes, g2m.genes))
+DimPlot(sample)
+```
+
+
+```{r}
+sample <- ScaleData(sample, vars.to.regress = c("S.Score", "G2M.Score"), features = rownames(sample))
+sample <- RunPCA(sample, features = VariableFeatures(object = sample))
+
+DimPlot(sample, reduction = "pca")
+
+```
 **It's important that we keep track of our active identity.**
 
 # Clustering
@@ -457,7 +582,7 @@ This algorithm in particular is the K Nearest Neighbors (KNN) graph that is cons
 For an example of building such a graph, imagine we took only two PCs (principal components) and had such an arrangement of cells like these dots in a 2D plane...
 
 ```{r, echo=FALSE}
-knitr::include_graphics("./images/KnnClassification.png")
+#knitr::include_graphics("./images/KnnClassification.png")
 ```
 
 On our example of k-NN classification for a cell highlighted in green color, the test sample (green dot) should be classified either to the group made of blue squares or to the subpopulation of cells here represented in red triangles.
@@ -480,7 +605,7 @@ So the KNN is build using multidimensional space, but the rules we just saw for 
 > Hint: `help` yourselves by reading the docs!
 
 ```{r findneighbours}
-pbmc <- FindNeighbors(pbmc, dims = seq_len(10))
+sample <- FindNeighbors(sample, dims = seq_len(10))
 ```
 
 We want to keep our clusters looking natural.
@@ -494,7 +619,8 @@ You can easily try various values and see how it performs.
 Optimal resolution often increases for larger datasets.
 
 ```{r findclusters}
-pbmc <- FindClusters(pbmc, resolution = 0.5)
+sample <- FindClusters(sample, resolution = 0.5)
+saveRDS(object = sample, "../sample_processed.RDS")
 ```
 
 After this process, we have a new `seurat_clusters` column in our `meta.data` slot.

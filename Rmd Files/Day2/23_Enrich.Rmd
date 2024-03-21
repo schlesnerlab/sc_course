@@ -20,9 +20,11 @@ output:
 # .libPaths(new = "/scratch/local/rseurat/pkg-lib-4.1.3")
 
 suppressMessages({
-  library(enrichR)
+  library(decoupleR)
   library(tidyverse)
   library(Seurat)
+  library(pheatmap)
+  library(SCpubr)
 })
 
 
@@ -49,7 +51,7 @@ cat("library path(s): ", .libPaths())
 
 We'll be working with the data from our past notebook ("First steps"), let's quickly re-load and re-process again:
 
-```{r first_steps, warning=FALSE}
+```{r first_steps, warning=FALSE, eval = FALSE}
 pbmc <- Read10X(data.dir = "./datasets/filtered_gene_bc_matrices/hg19/") %>%
   CreateSeuratObject(counts = ., project = "pbmc3k", min.cells = 3, min.features = 200)
 
@@ -75,11 +77,12 @@ pbmc <- RunUMAP(pbmc, dims = seq_len(10), verbose = FALSE)
 Next, we do our between-clusters DE analysis:
 
 ```{r de_steps}
+sample <- readRDS("../sample_processed.RDS")
 markers.between.clusters <- FindAllMarkers(
-  pbmc_small,
-  test.use = "MAST",
-  logfc.threshold = 0.125,
-  min.pct = 0.05,
+  sample,
+  test.use = "wilcox",
+  logfc.threshold = 0.5,
+  min.pct = 0.3,
   only.pos = TRUE,
   densify = TRUE
 )
@@ -117,18 +120,65 @@ There are more than 200 databases available, you can get a data frame with detai
 For this and the following to work you need a working internet connection.
 
 ```{r dbs}
-dbs <- c(
-  "GO_Biological_Process_2021",
-  "GO_Cellular_Component_2021",
-  "GO_Molecular_Function_2021"
-)
+decoupleR::get_resource("PanglaoDB") -> panglao_data
+
+panglao_data %>% dplyr::mutate(human = as.logical(human)) %>%dplyr::filter(human) %>% dplyr::mutate(canonical_marker = as.logical(canonical_marker)) %>% dplyr::filter(canonical_marker) %>% dplyr::filter("human_sensitivity" > 0.5) -> panglao_human_marker
+
 ```
 
 ```{r enrichr}
-result.1 <- markers.between.clusters %>%
-  filter(cluster == 1) %>%
-  rownames() %>%
-  enrichr(dbs)
+mat <- as.matrix(sample@assays$RNA$data)
+panglao_human_marker<- panglao_human_marker[!duplicated(panglao_human_marker[,c("cell_type", "genesymbol")]),]
+ora_enrich <- decoupleR::run_aucell(
+    mat=mat,
+    network=panglao_human_marker,
+    .source='cell_type',
+    .target='genesymbol',
+    minsize=3,
+)
+
+sample[["panglao_aucell"]] <-   ora_enrich %>%
+  pivot_wider(id_cols = 'source', names_from = 'condition',
+              values_from = 'score') %>%
+  column_to_rownames('source') %>%
+  Seurat::CreateAssayObject(.)
+# Scale the data
+sample <- ScaleData(sample, assay = "panglao_aucell")
+sample@assays$panglao_ora$data <- sample@assays$panglao_ora$scale.data
+```
+
+```{r}
+n_tfs <- 3
+# Extract activities from object as a long dataframe
+df <- t(as.matrix(sample@assays$panglao_aucell@scale.data)) %>%
+  as.data.frame() %>%
+  mutate(cluster = Idents(sample)) %>%
+  pivot_longer(cols = -cluster, names_to = "source", values_to = "score") %>%
+  group_by(cluster, source) %>%
+  summarise(mean = mean(score))
+
+top_3_cell_types <- df %>%
+    group_by(cluster) %>%
+    top_n(3, mean)
+
+all_top_cell_types <- top_3_cell_types %>% pull(source) %>% unique()
+
+top_acts_mat <- df %>%
+  filter(source %in% all_top_cell_types) %>%
+  pivot_wider(id_cols = 'cluster', names_from = 'source',
+              values_from = 'mean') %>%
+  column_to_rownames('cluster') %>%
+  as.matrix()
+
+# Choose color palette
+palette_length = 100
+my_color = colorRampPalette(c("Darkblue", "white","red"))(palette_length)
+
+my_breaks <- c(seq(-3, 0, length.out=ceiling(palette_length/2) + 1),
+               seq(0.05, 3, length.out=floor(palette_length/2)))
+
+# Plot
+pheatmap(top_acts_mat, border_color = NA,scale = "row", color=my_color, breaks = my_breaks)
 ```
 
 > ⌨🔥 Exercise(s):
@@ -139,28 +189,63 @@ result.1 <- markers.between.clusters %>%
 
 We can also produce nice graphical summaries:
 
-```{r plotenrichr}
-plotEnrich(result.1[[1]], showTerms = 10, numChar = 40, y = "Count", orderBy = "P.value")
+```{r}
+
+net <- get_progeny(organism = 'human', top = 500)
+net
+
+mat <- as.matrix(sample@assays$RNA@data)
+
+# Run mlm
+acts <- run_mlm(mat=mat, network =net, .source='source', .target='target',
+                .mor='weight', minsize = 5)
+acts
+
 ```
 
-Also, we may customize the selection and subsetting of top ranking categories that are visualized:
+```{r}
+# Extract mlm and store it in pathwaysmlm in data
+sample[['pathwaysmlm']] <- acts %>%
+  pivot_wider(id_cols = 'source', names_from = 'condition',
+              values_from = 'score') %>%
+  column_to_rownames('source') %>%
+  Seurat::CreateAssayObject(.)
 
-```{r plotenrich_finetuning}
-result.1$GO_Cellular_Component_2021 %>%
-  filter(
-    Adjusted.P.value < 5e-2,
-    Odds.Ratio != 1
-  ) %>%
-  arrange(-Combined.Score) %>%
-  # Combined.Score = ln(p)*z
-  plotEnrich(showTerms = 20, numChar = 50, y = "Ratio")
+# Change assay
+DefaultAssay(object = sample) <- "pathwaysmlm"
+
+# Scale the data
+sample <- ScaleData(sample, assay = "pathwaysmlm")
+sample@assays$pathwaysmlm@data <- sample@assays$pathwaysmlm@scale.data
 ```
 
-# End
+```{r}
+p1 <- DimPlot(sample, reduction = "umap", label = TRUE, pt.size = 0.5) + 
+  NoLegend() + ggtitle('Cell types')
+p2 <- (do_NebulosaPlot(sample, features = c("MAPK"),) & 
+  scale_colour_gradient2(low = 'blue', mid = 'white', high = 'red')) +
+  ggtitle('MAPK activity')
+p1 | p2
 
-```{r, eval=FALSE, echo=FALSE}
-new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono", "NK", "DC", "Platelet")
-names(new.cluster.ids) <- levels(pbmc)
-pbmc <- RenameIdents(pbmc, new.cluster.ids)
-rm(new.cluster.ids)
 ```
+### Compare with results from Publication
+
+```{r}
+excel_data <- readxl::read_excel("../1-s2.0-S2666379123004263-mmc3.xlsx", sheet = "OD top50 markers",skip = 1)
+
+excel_data %>% pivot_longer(cols = everything()) -> excel_long
+
+acts_paper <- decoupleR::run_aucell(mat, network = excel_long, .source = "name", .target = "value")
+
+# Extract mlm and store it in pathwaysmlm in data
+sample[['paper_aucell']] <- acts_paper %>%
+  pivot_wider(id_cols = 'source', names_from = 'condition',
+              values_from = 'score') %>%
+  column_to_rownames('source') %>%
+  Seurat::CreateAssayObject(.)
+
+SCpubr::do_ViolinPlot(sample, features = c("OPC-like", "Endothelial"), assay = "paper_aucell")
+
+SCpubr::do_FeaturePlot(sample, assay = "paper_aucell", features ="Astro-like")
+```
+

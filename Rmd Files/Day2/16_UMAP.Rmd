@@ -48,25 +48,25 @@ cat("library path(s): ", .libPaths())
 
 We'll be working with the data from "First steps", let's quickly re-load and re-process again:
 
-```{r initial, warning=FALSE}
-pbmc <- Read10X(data.dir = "./datasets/filtered_gene_bc_matrices/hg19/") %>%
-  CreateSeuratObject(counts = ., project = "pbmc3k", min.cells = 3, min.features = 200)
+```{r initial, warning=FALSE, eval = FALSE}
+sample <- Read10X(data.dir = "./datasets/filtered_gene_bc_matrices/hg19/") %>%
+  CreateSeuratObject(counts = ., project = "sample3k", min.cells = 3, min.features = 200)
 
-pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
 
-pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+sample <- subset(sample, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
 
-pbmc <- NormalizeData(pbmc, verbose = FALSE)
+sample <- NormalizeData(sample, verbose = FALSE)
 
-pbmc <- FindVariableFeatures(pbmc, verbose = FALSE)
+sample <- FindVariableFeatures(sample, verbose = FALSE)
 
-pbmc <- ScaleData(pbmc, features = rownames(pbmc), verbose = FALSE)
+sample <- ScaleData(sample, features = rownames(sample), verbose = FALSE)
 
-pbmc <- RunPCA(pbmc, features = VariableFeatures(pbmc), verbose = FALSE)
+sample <- RunPCA(sample, features = VariableFeatures(sample), verbose = FALSE)
 
-pbmc <- FindNeighbors(pbmc, dims = seq_len(10), verbose = FALSE)
+sample <- FindNeighbors(sample, dims = seq_len(10), verbose = FALSE)
 
-pbmc <- FindClusters(pbmc, resolution = 0.5, verbose = FALSE)
+sample <- FindClusters(sample, resolution = 0.5, verbose = FALSE)
 ```
 
 When working on your own, you will avoid re-running everything like we did here.
@@ -80,12 +80,13 @@ And afterwards, you would *load* from disk with the function `readRDS`.
 Clusters can be shown on heatmaps:
 
 ```{r heatmap, echo=FALSE}
-ann <- pbmc@meta.data %>%
+sample<- readRDS("../sample_processed.RDS")
+ann <- sample@meta.data %>%
   select(seurat_clusters) %>%
   arrange(seurat_clusters)
 
 # extract CELL-PC matrix, subset, transpose, and plot
-pbmc@reductions$pca@cell.embeddings[rownames(ann), 1:5] %>%
+sample@reductions$pca@cell.embeddings[rownames(ann), 1:5] %>%
   t() %>%
   pheatmap::pheatmap(
     cluster_cols = FALSE,
@@ -106,14 +107,14 @@ The projection on the first two components is often visualized because those cor
 And as we might expect, the different clusters can be seen as --more or less-- separating in this projection:
 
 ```{r pca, echo=FALSE}
-# easier: DimPlot(pbmc, reduction = "pca")
+# easier: DimPlot(sample, reduction = "pca")
 
 ggplot(
-  pbmc@reductions$pca@cell.embeddings[, 1:2] %>% as.data.frame(),
+  sample@reductions$pca@cell.embeddings[, 1:2] %>% as.data.frame(),
   aes(
     x = PC_1,
     y = PC_2,
-    color = pbmc@meta.data$seurat_clusters
+    color = sample@meta.data$seurat_clusters
   )
 ) +
   geom_point() +
@@ -135,63 +136,6 @@ knitr::include_graphics("./images/EarthProjection_Robinson_1963.jpg")
 
 For single-cell studies, two (similar) methodologies are popular: t-SNE and UMAP.
 The second one was developed 10 years later, and it adds a bunch of advantages.
-
-## t-SNE: t-distributed stochastic neighbor embedding
-
-```{r sq_tsne, echo=FALSE, out.width="49%", out.height="49%", fig.show='hold', fig.align="center"}
-knitr::include_graphics("images/tsne01.png")
-knitr::include_graphics("images/tsne02.png")
-```
-
-Here the key idea is to first map distances between cells/ samples, $i$ and $j$, to probabilities
-
--   in high dimensions: $d_{ij} \to p_{ij}$,
--   in low dimensions (2D): $\delta_{ij} \to q_{ij}$
-
-Cells are then iteratively moved around in 2D until $q_{ij} \approx p_{ij}$.
-
-The t- in t-SNE just corresponds to a specific choice of the map $\delta_{ij} \to q_{ij}$ which has proved useful for a wide range of applications.
-For further details, see some of these resources:
-
--   [Google TechTalk](https://www.youtube.com/watch?v=RJVL80Gg3lA&list=UUtXKDgv1AVoG88PLl8nGXmw) (Duration 55 min.)
--   [StatQuest!](https://www.youtube.com/watch?v=NEaUSP4YerM) video (Duration 10 min.) The screenshots included above come from here.
--   [Article at Distill](https://distill.pub/2016/misread-tsne/) on the effects of parameters.
--   [2019 paper](https://www.nature.com/articles/s41467-019-13056-x) summarizing the challenges of t-SNE for scRNA-seq data.
--   [original paper](https://jmlr.csail.mit.edu/papers/volume9/vandermaaten08a/vandermaaten08a.pdf) from 2008.
-
-The technical details may be challenging, but the execution in Seurat is straightforward.
-Keep in mind that this algorithm has many parameters that can be adjusted, the most relevant is probably the **perplexity** (see `?Rtsne::Rtsne` for further details.) This value is our way of telling to the algorithm (loosely) how to balance attention between local and global aspects of your data.
-The parameter is, in a sense, a guess about the number of close neighbors each point has.
-
-```{r tsne}
-pbmc <- RunTSNE(pbmc)
-DimPlot(pbmc, reduction = "tsne")
-```
-
-> ⌨🔥 Exercise: Find out which parameters are used per default.
-> Explore some parameter choices together with your classmates and observe if this will affect the plot.
-
-> 🧭✨ Polls:
->
-> Is t-SNE affected by the seed?
->
-> According to the docs, perplexity should always follow: `3 * perplexity < nrow(X) -1`.
->
-> Are the rows referring to genes or cells?
-> Hint: see description of the matrix `X` in the help of `Rtsne()`...
-
-```{r tsne_stochastic, eval=FALSE}
-p1 <- pbmc %>%
-  RunTSNE(seed.use = NULL) %>%
-  DimPlot(reduction = "tsne")
-p2 <- pbmc %>%
-  RunTSNE(seed.use = NULL) %>%
-  DimPlot(reduction = "tsne")
-p1 + p2
-```
-
-> **Conclusion:** t-SNE is a stochastic algorithm.
-> It starts with a random projection, and then accommodates the points in the lower dimension by moving them iteratively, guided by the similarity scores (the Student distribution.)
 
 ## UMAP: Uniform Manifold Approximation and Projection
 
@@ -223,8 +167,8 @@ It has several advantages:
 Thanks to Seurat, and the underlying package (see `?uwot::umap`), finding and plotting the UMAP projection is also straightforward:
 
 ```{r umap, warning=FALSE}
-pbmc <- RunUMAP(pbmc, dims = 1:5, verbose = FALSE)
-DimPlot(pbmc, reduction = "umap")
+sample <- RunUMAP(sample, dims = 1:10, n.neighbors = 20, verbose = FALSE,)
+do_DimPlot(sample, reduction = "umap")
 ```
 
 Unsurprisingly there are again many parameters that can change the visualization.
@@ -240,8 +184,9 @@ Unsurprisingly there are again many parameters that can change the visualization
 ### Take Away
 
 ```{r}
-DimPlot(pbmc, reduction = "umap") + NoLegend() |
-  DimPlot(pbmc, reduction = "tsne") + NoLegend()
+DimPlot(sample, reduction = "umap", group.by = "old.ident") 
+
+saveRDS(sample, "../sample_processed.RDS")
 ```
 
 -   Global distances and orientations should not be over-interpreted.
