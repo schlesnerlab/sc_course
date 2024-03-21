@@ -1,7 +1,9 @@
 ---
 title: "Functional Analyses"
-
 output:
+  pdf_document:
+    toc: true
+    toc_depth: '2'
   html_document:
     theme: spacelab
     highlight: pygments

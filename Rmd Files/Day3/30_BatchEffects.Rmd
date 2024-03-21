@@ -32,6 +32,8 @@ library(formatR)
 library(knitr)
 library(magrittr)
 library(RColorBrewer)
+library(scDblFinder)
+library(SCpubr)
 knitr::opts_chunk$set(fig.width = 6, fig.height = 5, message = FALSE, warning = FALSE, tidy = TRUE, tidy.opts = list(width.cutoff = 70))
 ```
 
@@ -71,15 +73,83 @@ We have subset and pre-processed the full dataset for you.
 You can download it from `zenodo`.
 
 ```{r load_subset}
-forig <- "https://zenodo.org/record/7891484/files/panc_sub_processed.RDS?download=1"
-fdest <- "datasets/preprocessed_rds/panc_sub_processed.RDS"
+sample <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
+Seurat::DefaultAssay(sample) <- "RNA"
 
-if (!file.exists(fdest)) {
-  utils::download.file(forig, destfile = fdest, method = "curl")
-}
-panc_sub <- readRDS(fdest)
+# Global parameters. Used throughout the whole analysis.
+sample_name_1 <- "OE0145-IDH_NCH6341" # Name of the sample.
+sample_name_2 <- "OE0145-IDH_NCH781" 
+
+seurat_6341 <- readRDS("../sample_processed.RDS")
+seurat_781 <- sample[,sample$orig.ident == sample_name_2 ]
 ```
 
+
+```{r}
+#QC
+
+seurat_781[["percent.mt"]] <- PercentageFeatureSet(seurat_781, pattern = "^MT-")
+
+do_ViolinPlot(
+  seurat_781,
+  features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
+  ncol = 3, group.by = "orig.ident"
+)
+
+```
+
+```{r featurescatter}
+plot1 <- FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "orig.ident")
+plot2 <- FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "orig.ident")
+plot3 <- FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "SPARCL1",slot = "counts", group.by = "orig.ident")
+plot1 / plot2
+plot3
+```
+
+```{r filter, echo=FALSE}
+
+# Perform QC on the sample.
+# Get cutoffs.
+counts_lower_cutoff <- 1000 # Minimum amount of UMIs per cell.
+genes_lower_cutoff <- 500 # Minimum amount of genes per cell.
+mito_higher_cutoff <- 5 # Maximum amount of mitochondrial RNA per cell.
+
+# Generate the first subset.
+count_mask <- seurat_781$nCount_RNA > counts_lower_cutoff
+gene_mask <- seurat_781$nFeature_RNA > genes_lower_cutoff
+mito_mask <- seurat_781$percent.mt < mito_higher_cutoff
+mask <- count_mask & gene_mask & mito_mask
+summary(mask)
+seurat_781 <- seurat_781[, mask] # Subset the sample.
+
+# Upper cutoffs are determined by the mean and standard deviation of the remaining cells.
+counts_higher_cutoff <- mean(seurat_781$nCount_RNA) + 3 * stats::sd(seurat_781$nCount_RNA)
+genes_higher_cutoff <- mean(seurat_781$nFeature_RNA) + 3 * stats::sd(seurat_781$nFeature_RNA)
+
+
+# Second subset based on the mean and standard deviation of the remaining cells.
+count_mask <- seurat_781$nCount_RNA < counts_higher_cutoff
+gene_mask <- seurat_781$nFeature_RNA < genes_higher_cutoff
+mask <- count_mask & gene_mask
+summary(mask)
+
+seurat_781 <- seurat_781[,mask]
+```
+
+
+```{r}
+sce = scDblFinder(
+    SingleCellExperiment(
+        list(counts=seurat_781@assays$RNA$counts),
+    ) 
+)
+doublet_score = sce$scDblFinder.score
+doublet_class = sce$scDblFinder.class
+seurat_781$scDblFinder.score <- sce$scDblFinder.score
+seurat_781$scDblFinder.class <- sce$scDblFinder.class
+hist(seurat_781$scDblFinder.score, breaks = "FD")
+FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "nFeature_RNA",group.by = "scDblFinder.class")
+```
 > 🧭✨ Poll:
 >
 > [Which sequencing technologies are retained in the subset dataset?](https://PollEv.com/multiple_choice_polls/j2zBwetamS5edfxq0JDs8/respond)
@@ -92,11 +162,7 @@ Plot UMAP embedding for the subset dataset.
 Inspect the cell separation by cell type and by sequencing technology.
 
 ```{r umap_sub, echo=FALSE,fig.width=12,fig.show='hold',fig.align='center'}
-my_cols <- brewer.pal(panc_sub@meta.data$tech %>% unique() %>% length(), "Dark2")
 
-p1 <- DimPlot(panc_sub, reduction = "umap", group.by = "tech", cols = scales::alpha(my_cols, 0.3))
-p2 <- DimPlot(panc_sub, reduction = "umap", group.by = "celltype")
-p1 + p2
 ```
 
 > ⌨🔥 Exercise: plot gene expression
@@ -108,28 +174,32 @@ p1 + p2
 
 Here's our proposed solution:
 
-```{r solution_DEG_before}
-smartseq2.markers <- FindMarkers(panc_sub, ident.1 = "smartseq2", ident.2 = "celseq", only.pos = TRUE)
-VlnPlot(panc_sub, features = "LRRC75A-AS1", group.by = "celltype", split.by = "tech")
+```{r merge normalize and plot}
+merged_seurat <- merge(seurat_6341, seurat_781)
+
+merged_seurat <- NormalizeData(merged_seurat)
+merged_seurat <- FindVariableFeatures(merged_seurat, selection.method = "vst", nfeatures = 2000) 
+
+(plot1 <- VariableFeaturePlot(merged_seurat))
+
+(plot2 <-
+  LabelPoints(
+    plot = plot1,
+    points = head(VariableFeatures(merged_seurat), 10),
+    repel = TRUE
+  ))
+merged_seurat <- ScaleData(merged_seurat, features = rownames(merged_seurat))
+
+
 ```
+```{r runpca}
+merged_seurat <- RunPCA(merged_seurat, features = VariableFeatures(object = merged_seurat))
 
-This gene appears to be mostly expressed in cells sequenced with the smartseq2 technology in multiple cell populations.
-
-Let's plot it's expression on the lowD embedding:
-
-```{r DEG_before_umap,fig.width=6,fig.height=10}
-p1 <- FeaturePlot(panc_sub, features = "LRRC75A-AS1")
-p2 <- DimPlot(panc_sub, reduction = "umap", group.by = "tech", cols = scales::alpha(my_cols, 0.3))
-p1 + p2
-```
-
-On the other hand, what does the expression of known celltype markers look like ?
-Let's plot the expression of the alpha cell marker gen "GCG".
-
-```{r marker_before_umap,fig.width=6,fig.height=10}
-p1 <- FeaturePlot(panc_sub, features = "GCG")
-p2 <- DimPlot(panc_sub, reduction = "umap", group.by = "celltype")
-p1 + p2
+do_DimPlot(merged_seurat, reduction = "pca", group.by = "orig.ident",plot.axes = T)
+ElbowPlot(merged_seurat)
+merged_seurat <- FindNeighbors(merged_seurat, dims = seq_len(8))
+merged_seurat <- RunUMAP(merged_seurat, dims = 1:8, n.neighbors = 20, verbose = FALSE,)
+do_DimPlot(merged_seurat, reduction = "umap", group.by = "orig.ident")
 ```
 
 ## What options are there to mitigate batch effects ?
@@ -154,14 +224,10 @@ Seurat authors developed a strategy to "anchor" diverse datasets together: - Joi
 Prior to the integration, we want to normalize each dataset to be integrated separately.
 
 ```{r seurat_integrate1}
-# split the dataset into a list of seurat objects
-panc.list <- SplitObject(panc_sub, split.by = "dataset")
+npcs <- 10
+# Normalize using Harmony. The effect to remove is the orig.ident metadata column (from where each sample comes from).
+sample <- harmony::RunHarmony(sample, dims = 1:npcs, group.by.vars = "orig.ident", assay.use = "RNA")
 
-# normalize and identify variable features for each dataset independently
-panc.list <- lapply(X = panc.list, FUN = function(x) {
-  x <- NormalizeData(x)
-  x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
-})
 ```
 
 ## Seurat Integration
