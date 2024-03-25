@@ -232,7 +232,7 @@ p1 | p2
 ```
 ### Compare with results from Publication
 
-```{r}
+```{r, fig.width =12, fig.height=12}
 excel_data <- readxl::read_excel("../1-s2.0-S2666379123004263-mmc3.xlsx", sheet = "OD top50 markers",skip = 1)
 
 excel_data %>% pivot_longer(cols = everything()) -> excel_long
@@ -248,6 +248,7 @@ sample[['paper_aucell']] <- acts_paper %>%
 
 SCpubr::do_ViolinPlot(sample, features = c("OPC-like", "Endothelial"), assay = "paper_aucell")
 
-SCpubr::do_FeaturePlot(sample, assay = "paper_aucell", features ="Astro-like")
+SCpubr::do_FeaturePlot(sample, assay = "paper_aucell", features = colnames(excel_data),legend.position = "none",individual.captions = colnames(excel_data))
+                       
 ```
 

@@ -43,6 +43,7 @@ suppressMessages({
   library(Seurat)
   library(tidyverse)
   library(scDblFinder)
+  library(SCpubr)
 })
 
 
@@ -92,7 +93,7 @@ options(download.file.method.GEOquery = "wget")
 #  Quality control {.unnumbered}
 
 ```{r}
-#| eval: false
+#| eval: true
 #| 
 # Enrique Blanco Carmona
 # e.blancocarmona@kitz-heidelberg.de

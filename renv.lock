@@ -785,16 +785,6 @@
       ],
       "Hash": "caee529bf9710ff6fe1776612fcaa266"
     },
-    "WriteXLS": {
-      "Package": "WriteXLS",
-      "Version": "6.5.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "utils"
-      ],
-      "Hash": "5b73731a0b8ffbdbf1f2f6061bf0635e"
-    },
     "XML": {
       "Package": "XML",
       "Version": "3.99-0.16.1",
@@ -1222,6 +1212,27 @@
       ],
       "Hash": "59351f28a81f0742720b85363c4fdd61"
     },
+    "decoupleR": {
+      "Package": "decoupleR",
+      "Version": "2.8.0",
+      "Source": "Bioconductor",
+      "Requirements": [
+        "Matrix",
+        "R",
+        "broom",
+        "dplyr",
+        "magrittr",
+        "purrr",
+        "rlang",
+        "stats",
+        "stringr",
+        "tibble",
+        "tidyr",
+        "tidyselect",
+        "withr"
+      ],
+      "Hash": "235f7ace78637e656aabb0f7b6ab7a60"
+    },
     "deldir": {
       "Package": "deldir",
       "Version": "2.0-4",
@@ -1337,21 +1348,6 @@
         "rlang"
       ],
       "Hash": "bb0eec2fe32e88d9e2836c2f73ea2077"
-    },
-    "enrichR": {
-      "Package": "enrichR",
-      "Version": "3.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Requirements": [
-        "R",
-        "WriteXLS",
-        "curl",
-        "ggplot2",
-        "httr",
-        "rjson"
-      ],
-      "Hash": "d6fe55ea717f33189d37cf78c698f490"
     },
     "evaluate": {
       "Package": "evaluate",

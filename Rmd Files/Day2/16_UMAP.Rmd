@@ -22,6 +22,7 @@ output:
 suppressMessages({
   library(tidyverse)
   library(Seurat)
+  library(SCpubr)
 })
 
 
@@ -130,8 +131,8 @@ That is why we have different projections, depicted here are two different works
 <!-- https://en.wikipedia.org/wiki/List_of_map_projections -->
 
 ```{r cartography, echo=FALSE, out.width="49%", out.height="49%", fig.show='hold', fig.align="center"}
-knitr::include_graphics("./images/EarthProjection_Gauss-Kruger_1822.jpg")
-knitr::include_graphics("./images/EarthProjection_Robinson_1963.jpg")
+knitr::include_graphics("../images/EarthProjection_Gauss-Kruger_1822.jpg")
+knitr::include_graphics("../images/EarthProjection_Robinson_1963.jpg")
 ```
 
 For single-cell studies, two (similar) methodologies are popular: t-SNE and UMAP.
@@ -145,7 +146,7 @@ One of the differences between UMAP and t-SNE is that instead of using the Norma
 This integer is one of our biggest parameter to explore: number of neighbors.
 
 ```{r sq_umap, echo=FALSE, fig.align="center"}
-knitr::include_graphics("images/umap.png")
+knitr::include_graphics("../images/umap.png")
 ```
 
 For further details, see some of these resources:
