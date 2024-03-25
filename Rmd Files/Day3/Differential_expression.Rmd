@@ -1,0 +1,75 @@
+---
+title: "Differential Expression testing"
+output: html_document
+date: "2024-03-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Seurat)
+library(SCpubr)
+```
+
+## R Markdown
+Di
+
+```{r cars}
+sample <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
+sample$orig.ident %>% unique()
+
+paste0(sample$orig.ident, "_", sample$grade) %>% unique()
+
+do_DimPlot(sample, reduction = "umap")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+pseudobulked_seurat <- AggregateExpression(sample, assays = "RNA", return.seurat = T, group.by = c("grade", "orig.ident", "New_NMF_labelling"))
+pseudobulked_seurat$celltype.grade <- paste(pseudobulked_seurat$New_NMF_labelling, pseudobulked_seurat$grade, 
+                                            sep = "_")
+tail(Cells(pseudobulked_seurat))
+
+Idents(pseudobulked_seurat) <- "celltype.grade"
+
+cell_type <- "Cycling-like"
+bulk.mono.de <- FindMarkers(object = pseudobulked_seurat, 
+                         ident.1 = glue::glue("{cell_type}_g2"), 
+                         ident.2 = glue::glue("{cell_type}_g3"),
+                         test.use = "DESeq2")
+head(bulk.mono.de, n = 15)
+```
+
+```{r}
+# compare the DE P-values between the single-cell level and the pseudobulk level results
+names(bulk.mono.de) <- paste0(names(bulk.mono.de), ".bulk")
+bulk.mono.de$gene <- rownames(bulk.mono.de)
+
+names(mono.de) <- paste0(names(mono.de), ".sc")
+mono.de$gene <- rownames(mono.de)
+
+merge_dat <- merge(mono.de, bulk.mono.de, by = "gene")
+merge_dat <- merge_dat[order(merge_dat$p_val.bulk), ]
+
+# Number of genes that are marginally significant in both; marginally significant only in bulk; and marginally significant only in single-cell
+common <- merge_dat$gene[which(merge_dat$p_val.bulk < 0.05 & 
+                                merge_dat$p_val.sc < 0.05)]
+only_sc <- merge_dat$gene[which(merge_dat$p_val.bulk > 0.05 & 
+                                  merge_dat$p_val.sc < 0.05)]
+only_bulk <- merge_dat$gene[which(merge_dat$p_val.bulk < 0.05 & 
+                                    merge_dat$p_val.sc > 0.05)]
+print(paste0('# Common: ',length(common)))
+```
+
+```{r}
+do_FeaturePlot(sample, features = "CD36")
+sample$celltype.grade <- paste(sample$New_NMF_labelling, sample$grade, 
+                                            sep = "_")
+Idents(sample) <- "celltype.grade"
+mono.de <- FindMarkers(sample, ident.1 = "Gradient_2", ident.2 = "Gradient_3", verbose = FALSE)
+
+VlnPlot(sample, features = "KCND2", idents = c("Gradient_2", "Gradient_3"), group.by = "grade") 
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

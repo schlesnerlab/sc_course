@@ -34,6 +34,7 @@ library(magrittr)
 library(RColorBrewer)
 library(scDblFinder)
 library(SCpubr)
+library(Seurat)
 knitr::opts_chunk$set(fig.width = 6, fig.height = 5, message = FALSE, warning = FALSE, tidy = TRUE, tidy.opts = list(width.cutoff = 70))
 ```
 
@@ -78,7 +79,7 @@ Seurat::DefaultAssay(sample) <- "RNA"
 
 # Global parameters. Used throughout the whole analysis.
 sample_name_1 <- "OE0145-IDH_NCH6341" # Name of the sample.
-sample_name_2 <- "OE0145-IDH_NCH781" 
+sample_name_2 <- "OE0145-IDH_ACB_AD_540" 
 
 seurat_6341 <- readRDS("../sample_processed.RDS")
 seurat_781 <- sample[,sample$orig.ident == sample_name_2 ]
@@ -176,7 +177,8 @@ Here's our proposed solution:
 
 ```{r merge normalize and plot}
 merged_seurat <- merge(seurat_6341, seurat_781)
-
+rm("sample","seurat_6341", "seurat_781")
+gc()
 merged_seurat <- NormalizeData(merged_seurat)
 merged_seurat <- FindVariableFeatures(merged_seurat, selection.method = "vst", nfeatures = 2000) 
 
@@ -224,25 +226,48 @@ Seurat authors developed a strategy to "anchor" diverse datasets together: - Joi
 Prior to the integration, we want to normalize each dataset to be integrated separately.
 
 ```{r seurat_integrate1}
-npcs <- 10
+
+# We normalize first using SCTransform and removing the effect of UMIs, genes and percent.mt.
+# Process followed as in https://github.com/satijalab/seurat/issues/1679#issuecomment-557781838
+merged_seurat[["RNA"]] <- split(merged_seurat[["RNA"]], f = merged_seurat$orig.ident)
+merged_seurat <- NormalizeData(merged_seurat)
+merged_seurat <- FindVariableFeatures(merged_seurat)
+merged_seurat <- ScaleData(merged_seurat)
+merged_seurat <- RunPCA(merged_seurat)
+merged_seurat <- IntegrateLayers(object = merged_seurat, method = HarmonyIntegration, orig.reduction = "pca",
+                       new.reduction = 'harmony', verbose = FALSE)
+merged_seurat <- FindNeighbors(merged_seurat, reduction = "harmony", dims = 1:30)
+merged_seurat <- FindClusters(merged_seurat, resolution = 2, cluster.name = "harmony_clusters")
+merged_seurat <- RunUMAP(merged_seurat, reduction = "harmony", dims = 1:30, reduction.name = "umap.harmony")
+
+merged_seurat <- IntegrateLayers(object = merged_seurat, method = RPCAIntegration,
+  orig.reduction = "pca", new.reduction = 'integrated.rpca',
+  verbose = FALSE)
+merged_seurat <- FindNeighbors(merged_seurat, reduction = "integrated.rpca", dims = 1:30)
+merged_seurat <- FindClusters(merged_seurat, graph.name = "RNA_snn",resolution = 2, cluster.name = "rpca_clusters")
+merged_seurat <- RunUMAP(merged_seurat, reduction = "integrated.rpca", dims = 1:30, reduction.name = "umap.rpca")
+
 # Normalize using Harmony. The effect to remove is the orig.ident metadata column (from where each sample comes from).
-sample <- harmony::RunHarmony(sample, dims = 1:npcs, group.by.vars = "orig.ident", assay.use = "RNA")
+#merged_seurat <- SCTransform(object = merged_seurat)
+#merged_seurat <- IntegrateLayers(object = merged_seurat, method = CCAIntegration,
+#  orig.reduction = "pca", new.reduction = "integrated.rpca",assay = "RNA",
+#   verbose = FALSE)
 
 ```
+
+```{r, fig.width = 12}
+p1 <- DimPlot(
+  merged_seurat,
+  reduction = "umap.rpca",
+  group.by = c("orig.ident", "New_NMF_labelling", "rpca_clusters"),
+  combine = FALSE, label.size = 2
+)
+patchwork::wrap_plots(p1)
+```
+
 
 ## Seurat Integration
 
-In this paragraph, we're going to run the three functions key to Seurat Integration.
-
-```{r seurat_integrate2}
-# select features that are repeatedly variable across datasets for integration
-features <- SelectIntegrationFeatures(object.list = panc.list)
-
-anchors <- FindIntegrationAnchors(object.list = panc.list, anchor.features = features, normalization.method = "LogNormalize")
-
-# this command creates an 'integrated' data assay
-panc.combined <- IntegrateData(anchorset = anchors, normalization.method = "LogNormalize")
-```
 
 Let's clean up some redundant objects from memory.
 
@@ -263,30 +288,27 @@ After the integration, data scaling on the new assay is necessary, as well as ca
 ```{r process_integrated}
 # specify that we will perform downstream analysis on the corrected data note that the
 # original unmodified data still resides in the 'RNA' assay
-DefaultAssay(panc.combined) <- "integrated"
+merged_seurat <- Seurat::FindNeighbors(merged_seurat, dims = 1:30, reduction = "harmony")
+merged_seurat <- Seurat::FindClusters(merged_seurat, dims = 1:30, reduction = "harmony")
+merged_seurat <- Seurat::RunUMAP(merged_seurat, dims = 1:30, reduction = "harmony",reduction.name = "umap_harmony")
+
+do_DimPlot(merged_seurat, reduction = "umap_", group.by = "orig.ident")
+do_DimPlot(merged_seurat, reduction = "umap_harmony", group.by = c("orig.ident", "New_NMF_labelling" ))
 
 # Run the standard workflow for visualization and clustering
-panc.combined <- ScaleData(panc.combined, verbose = FALSE)
-panc.combined <- RunPCA(panc.combined, npcs = 30, verbose = FALSE)
-panc.combined <- RunUMAP(panc.combined, reduction = "pca", dims = 1:30)
+
 ```
 
 ## What does the data look like after the integration?
 
-Let's have a look at the distribution of technology, and celltype, labels in lowD after integration.
 
-```{r integrated_umap, echo=FALSE,fig.width=12,fig.show='hold',fig.align='center'}
-p1 <- DimPlot(panc.combined, reduction = "umap")
-p2 <- DimPlot(panc.combined, reduction = "umap", group.by = "celltype")
-p1 + p2
-```
 
 We can also compare the distribution of cell tech labels before and after integration.
 
 ```{r b_a_umap, echo=FALSE,fig.width=12,fig.show='hold',fig.align='center'}
-p1 <- DimPlot(panc_sub, reduction = "umap")
-p2 <- DimPlot(panc.combined, reduction = "umap")
-p1 + p2
+do_DimPlot(merged_seurat, reduction = "umap_harmony", group.by = c("New_NMF_labelling") )
+do_DimPlot(merged_seurat, reduction = "umap_harmony", group.by = c("orig.ident") )
+
 ```
 
 > ⌨🔥 Exercise: plot gene expression after integration
@@ -296,20 +318,15 @@ p1 + p2
 > What has changed, what hasn't, and why?
 
 Here's our proposed solution:
+```{r}
+do_FeaturePlot(merged_seurat, features = "ASIC1", reduction = "umap_harmony")
 
-```{r solution_DEG_after}
-VlnPlot(panc.combined, features = "LRRC75A-AS1", group.by = "celltype", split.by = "tech")
 ```
 
 The expression of this gene hasn't changed - as it is not present in the "integrated" assay, the `VlnPlot` function has fetched it's expression value from the RNA assay, which is not modified by the integration.
 
 Let's plot it's expression on the lowD embedding:
 
-```{r DEG_after_umap,fig.width=6,fig.height=10}
-p1 <- FeaturePlot(panc.combined, features = "LRRC75A-AS1")
-p2 <- DimPlot(panc.combined, reduction = "umap", group.by = "tech", cols = scales::alpha(my_cols, 0.3))
-p1 + p2
-```
 
 We can now appreciate that cells highly expressing this gene are distributed over all clusters.
 Note that the mixing with the cells negative for this marker is imperfect, but such is the result of the integration for this dataset.
@@ -318,9 +335,7 @@ Let's ascertain ourselves that the expression of the celltype markers is behavin
 For this purpose, let's plot the expression of the alpha cell marker gen "GCG".
 
 ```{r marker_after_umap,fig.width=6,fig.height=10}
-p1 <- FeaturePlot(panc.combined, features = "GCG")
-p2 <- DimPlot(panc.combined, reduction = "umap", group.by = "celltype")
-p1 + p2
+
 ```
 
 ## Outlook
