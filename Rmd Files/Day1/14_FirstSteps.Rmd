@@ -14,30 +14,10 @@ output:
 
 # Setup
 
-<link rel="stylesheet" href="headers.css">
-
-::: {.alert .alert-dismissible .alert-warning}
-<h4 class="alert-heading">
-
-Note for Workbench users
-
-</h4>
-
-<p class="mb-0">
-
-If you have chosen to use the common library sitting at <code>/scratch/local/rseurat/pkg-lib-4.1.3</code>, and the following code block fails (after uncommenting the first line).
-Try this: restart R (<code>Ctrl+Shift+F10</code>), and then execute in the Console directly (no code block this time):
-
-<code class="sourceCode r">.libPaths(new="/scratch/local/rseurat/pkg-lib-4.1.3")</code>
-
-<br />This (incl. restart) may be run up to two times, we did had the unexpected experience were this was the case... 🤷
-
-</p>
-:::
-
 ```{r setup}
 
-
+# This setup block loads the required packages for the course
+# These should be preinstalled
 suppressMessages({
   library(tidyverse)
   library(Seurat)
@@ -46,12 +26,11 @@ suppressMessages({
   library(SCpubr)
 })
 
-
 set.seed(8211673)
 
 knitr::opts_chunk$set(echo = TRUE, format = TRUE, out.width = "100%")
 
-
+# Here we setup the multithreading setup for R 
 options(
   parallelly.fork.enable = FALSE,
   future.globals.maxSize = 8 * 1024^2 * 1000
@@ -59,6 +38,8 @@ options(
 
 plan("multicore", workers = 8) # function made available by SeuratObj automatically.
 ```
+
+The commands in this chunk show the current WD which in Rstudio and Rmarkdown is the position of the document. 
 
 ```{r useful-information, echo=FALSE}
 cat("work directory: ", getwd())
@@ -68,20 +49,33 @@ cat("library path(s): ", .libPaths())
 
 # Load Data
 
-We will be analyzing a dataset of Peripheral Blood Mononuclear Cells (sample) freely available from 10X Genomics.
-There are 2700 single cells that were sequenced with Illumina and aligned to the human transcriptome.
+We will be analyzing a dataset from the following paper: Blanco-Carmona, E. et al. Tumor heterogeneity and tumor-microglia interactions in primary and recurrent IDH1-mutant gliomas. Cell Reports Medicine 4, 101249 (2023).https://www.sciencedirect.com/science/article/pii/S2666379123004263
+
+We will focus on a few oligodendroglioma which were sequenced here in Heidelberg, however the processed 
+data is available in GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE205771
+
+The primary analysis was run by the DKFZ Omics Data Core Facility (ODCF) which is also
+helping provide the infrastructure for this course.
 
 For further details on the primary analysis pipeline that gives you the count data, please head over to [cellranger website](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/what-is-cell-ranger).
 
-The raw data can be found [here](https://cf.10xgenomics.com/samples/cell/sample3k/sample3k_filtered_gene_bc_matrices.tar.gz), and you have already downloaded it with the repository Zip file.
-This dataset consists of 3 files:
-
+After the cellranger pipeline has been row, one way to load the data is using these files
 -   `matrix.mtx`: **count matrix** represents the number of molecules for each gene (row) that are detected in each cell (column).
 -   `genes.tsv`: a list of ENSEMBL-IDs and their corresponding gene symbol
 -   `barcodes.tsv`: a list of molecular barcodes that identifies each cell uniquely
+(the alternative is loading the h5 encoded data. Either way can be done in Seurat)
+https://satijalab.org/seurat/reference/read10x
+https://satijalab.org/seurat/reference/read10x_h5 
+
+
+We are working on machines provided by the DENBI cloud. The main data directory should be shown
+ob the beamer (or just ask where on the server the data is stored. )
 
 For now we assume that this data resides in a directory `datasets/filtered_gene_bc_matrices/hg19` (relative to this current markdown file).
-We can read this with a single command:
+
+
+Alternatively, R/Bioconductor provides tools to download data directly from GEO. Here
+we have ane example on how to download data from our Publication directly to the hard drive. 
 
 ```{r download from geo}
 options(timeout = max(300, getOption("timeout")))
