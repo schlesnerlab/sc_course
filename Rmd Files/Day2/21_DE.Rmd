@@ -45,11 +45,10 @@ cat("library path(s): ", .libPaths())
 # Load Data
 
 We'll be working with the data from Day 1 ("First steps"), let's quickly re-load and re-process again:
+We also will want to visualize on the UMAP projections, so make sure you have also run that. 
 
 ```{r initial, warning=FALSE}
-sample_path <- "/omics/groups/OE0436/internal/heyer/scourse/sc_course/data/filtered/BT322.filtered_gene_matrices" 
-sample <- Read10X(data.dir = sample_path) %>%
-  CreateSeuratObject(counts = ., project = "sample3k", min.cells = 3, min.features = 200)
+sample <- readRDS("../sample_processed.RDS")
 
 sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
 
@@ -70,11 +69,66 @@ sample <- FindClusters(sample, resolution = 0.5, verbose = FALSE)
 sample <- RunUMAP(sample, dims = seq_len(10), verbose = FALSE)
 ```
 
-<!-- TODO: move clustering into day 2, since it's more tightly coupled to DE analysis // Also, the 42 analysis extensions document was shown this day to clear day 3 -->
+## Clustering
+
+The next step follow the work pioneered by `PhenoGraph`, a robust computational method that partitions high-dimensional single-cell data into subpopulations.
+Building on these subpopulations, `PhenoGraph` authors developed additional methods to extract high-dimensional signaling phenotypes and infer differences in functional potential between subpopulations.
+<!-- For details, be sure to check the [research paper](http://www.ncbi.nlm.nih.gov/pubmed/26095251) cited by seurat developers. -->
+
+This subpopulations *could* be of biological relevance, retrieving these is our goal.
+The definition of such groupings depend upon the parameters.
+This algorithm in particular is the K Nearest Neighbors (KNN) graph that is constructed based on the euclidean distance in PCA space.
+For an example of building such a graph, imagine we took only two PCs (principal components) and had such an arrangement of cells like these dots in a 2D plane...
+
+![Knn class](../images/KnnClassification.png)
+
+
+```{r, echo=FALSE}
+#knitr::include_graphics("../images/KnnClassification.png")
+```
+
+On our example of k-NN classification for a cell highlighted in green color, the test sample (green dot) should be classified either to the group made of blue squares or to the subpopulation of cells here represented in red triangles.
+If k = 3 (solid line circle) it is assigned to the red triangles because there are 2 triangles and only 1 square inside the inner circle.
+If k = 5 (dashed line circle) it is assigned to the blue squares (3 squares vs. 2 triangles inside the outer circle).
+
+There's a drawback with the 'majority voting' scheme, the assignment of such clusters is biased towards the clusters that have greater number of members (especially when ties start appearing).
+For that reason, we'll refine the process by using a graph, where edge weights between any two cells is based on the shared overlap in their local neighborhoods (Jaccard similarity).
+
+$$
+J(A,B) = \frac{Intersect(A,B)}{Union(A,B)} = J(B,A)
+$$
+
+**If two datasets share the exact same members, their Jaccard Similarity Index will be 1. Conversely, if they have no members in common then their similarity will be 0.**
+
+All the process described before, including the use of Jaccard Similarity Index is performed using the `FindNeighbors()` function, and takes as input the previously defined dimensionality of the dataset (first 10 PCs).
+So the KNN is build using multidimensional space, but the rules we just saw for 2D still apply.
+
+> 🧭✨ Task: Which is the default value of the parameter `K` that Seurat uses?
+> Hint: `help` yourselves by reading the docs!
+
+```{r findneighbours}
+sample <- FindNeighbors(sample, dims = seq_len(10))
+```
+
+We want to keep our clusters looking natural.
+That is, we want to have a modularity optimization on top of all.
+For that, we'll use the community search algorithm for graphs called Louvain.
+You can read more about it [here](https://scribe.froth.zone/louvain-algorithm-93fde589f58c?gi=8dce35ee2f75), or to read about it being applied to the biological problem at hand look into [this research paper](http://dx.doi.org/10.1088/1742-5468/2008/10/P10008).
+
+The `FindClusters()` function implements this procedure, and contains a `resolution` parameter that sets the 'granularity' of the downstream clustering, with increased values leading to a greater number of clusters.
+Usually, setting this parameter between `0.4` and `1.2` returns good results for single-cell datasets of around 3K cells.
+You can easily try various values and see how it performs.
+Optimal resolution often increases for larger datasets.
+
+
+```{r findclusters}
+sample <- FindClusters(sample, resolution = 0.5)
+
+umap <- do_DimPlot(sample, reduction = "umap", label = TRUE )
+```
 
 > 🧭✨ Polls:
 >
-> <!-- TODO: Add an option 'Depends' on the slot taken by the seurat function. This would be the correct answer actually. So, we need to rethink and/or rephrase questions and answers in this section. Overall, the goal is a good one, revisiting concepts and so on... -->
 >
 > What would happen if we ran `FindVariableFeatures` after `ScaleData`?
 >
@@ -97,9 +151,10 @@ Among other parameters, it takes:
 
 -   `ident.1`, and `ident.2`: typically these denote specific cluster numbers ("identities") of cells, but any other annotation from the metadata will work as well.
 -   `test.use`: select from a wide range of statistical models and/ or methodologies 
+  - Default: Wilcoxon Rank Sum test The Wilcoxon Rank Sum test is a non-parametric statistical test used to determine if there are differences between two groups that are not normally distributed
   - ["MAST"](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-015-0844-5))
-  - wilcoxon ranked sum test
-
+  - ["DESeq2"](https://bioconductor.org/packages/release/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#recommendations-for-single-cell-analysis)
+  - and more if you consult the documentation 
 **MAST controls for the proportion of genes detected in each cell,** this acts as a proxy for both technical (e.g., dropout, amplification efficiency) and biological factors (e.g., cell volume and extrinsic factors other than treatment of interest) that globally influence gene expression.
 Another popular option is `DESeq2`, with [plenty of caveats](https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#recommendations-for-single-cell-analysis) that the Seurat authors may have addressed.
 

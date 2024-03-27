@@ -61,17 +61,12 @@ We're going to work with a dataset comprised of pancreatic cells sequenced with 
 We're first going to inspect the lowD embedding of the full dataset, and then we're going to work with a subset of the full dataset.
 We're going to inspect and attempt to mitigate known batch effects in the subset dataset.
 
-## What does the data look like out of the box?
-
-Lets have a look at the UMAP embedding of the full dataset processed in a standard way, ignoring any possible batch effects.
-Compare the cell separation by sequencing technology and by cell type.
-
-![Full dataset on umap](images/panc8full.umap.png)
 
 ## Load the preprocessed subset dataset
 
-We have subset and pre-processed the full dataset for you.
-You can download it from `zenodo`.
+
+Here we now use the preprocessed data from GEO, which is directly available as a Seurat Object. 
+
 
 ```{r load_subset}
 sample <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
@@ -162,9 +157,6 @@ FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "nFeature_RNA",gr
 Plot UMAP embedding for the subset dataset.
 Inspect the cell separation by cell type and by sequencing technology.
 
-```{r umap_sub, echo=FALSE,fig.width=12,fig.show='hold',fig.align='center'}
-
-```
 
 > ⌨🔥 Exercise: plot gene expression
 >
@@ -234,6 +226,8 @@ merged_seurat <- NormalizeData(merged_seurat)
 merged_seurat <- FindVariableFeatures(merged_seurat)
 merged_seurat <- ScaleData(merged_seurat)
 merged_seurat <- RunPCA(merged_seurat)
+merged_seurat <- FindNeighbors(merged_seurat)
+merged_seurat <- RunUMAP(merged_seurat, reduction = "pca", dims = 1:30)
 merged_seurat <- IntegrateLayers(object = merged_seurat, method = HarmonyIntegration, orig.reduction = "pca",
                        new.reduction = 'harmony', verbose = FALSE)
 merged_seurat <- FindNeighbors(merged_seurat, reduction = "harmony", dims = 1:30)
@@ -279,7 +273,6 @@ gc()
 Let's have a brief look at the panc.combined dataset - a new Assay has been created by the integration procedure.
 
 > 🧭✨ Poll: What is the new assay called?]
-> (<https://PollEv.com/multiple_choice_polls/4ArWqQjwtyVafBYCiaqbr/respond>) Hint: you can access assays of a Seurat object with `Assays()`.
 
 ## Process the newly integrated dataset
 
@@ -366,30 +359,4 @@ PMID: 31178118; PMCID: PMC6687398
 
 ## Appendix
 
-This is how to reproduce generation of the UMAP embedding for the full dataset and further the generation of the subset dataset used in this course unit:
 
-```{=html}
-<code>
-library(SeuratData)
-panc <- LoadData("panc8", type = "default")
-table(panc$dataset)
-panc <- NormalizeData(panc)
-panc <- FindVariableFeatures(panc, selection.method = "vst", nfeatures = 2000)
-all.genes <- rownames(panc)
-panc <- ScaleData(panc, features = all.genes)
-panc <- RunPCA(panc, features = VariableFeatures(object = panc))
-panc <- RunUMAP(panc, dims = 1:15)
-p1<-DimPlot(panc, reduction = "umap",label=TRUE)
-p2<-DimPlot(panc, reduction = "umap",group.by="celltype")
-p1+p2
-
-panc_sub <- subset(x=panc,subset = dataset == c("celseq","celseq2","smartseq2"))
-panc_sub <- NormalizeData(panc_sub)
-panc_sub <- FindVariableFeatures(panc_sub, selection.method = "vst", nfeatures = 2000)
-all.genes <- rownames(panc_sub)
-panc_sub <- ScaleData(panc_sub, features = all.genes)
-panc_sub <- RunPCA(panc_sub, features = VariableFeatures(object = panc_sub))
-panc_sub <- RunUMAP(panc_sub, dims = 1:15)
-saveRDS(panc_sub,"panc_sub_processed.RDS")
-</code>
-```

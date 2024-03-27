@@ -47,11 +47,10 @@ cat("library path(s): ", .libPaths())
 
 # Load Data
 
-We'll be working with the data from "First steps", let's quickly re-load and re-process again:
+We'll be working with the data from "First steps", in case you didnt save the work form last time, you need to reread the data and process it again.
 
 ```{r initial, warning=FALSE, eval = FALSE}
-sample <- Read10X(data.dir = "./datasets/filtered_gene_bc_matrices/hg19/") %>%
-  CreateSeuratObject(counts = ., project = "sample3k", min.cells = 3, min.features = 200)
+sample <- readRDS("../sample_processed.RDS")
 
 sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
 
@@ -71,14 +70,15 @@ sample <- FindClusters(sample, resolution = 0.5, verbose = FALSE)
 ```
 
 When working on your own, you will avoid re-running everything like we did here.
-We had the privilege of working with an educational dataset that has only 2700 cells.
-So these steps are not super intensive to re-compute.
-On a real dataset, you would *write* it to disk with `saveRDS(SeuratObj, file = "./data.rds")`.
-And afterwards, you would *load* from disk with the function `readRDS`.
+When working with your own data, especially with larger datasets it is important to 
+save your progress as you work. 
+
 
 # Heatmaps
 
 Clusters can be shown on heatmaps:
+In a Heatmap we can visualize clustering, to illustrate some of the expression differences between these. 
+However it does not resolve issues due to the dimensionality of the dataset. 
 
 ```{r heatmap, echo=FALSE}
 sample<- readRDS("../sample_processed.RDS")
@@ -98,6 +98,8 @@ sample@reductions$pca@cell.embeddings[rownames(ann), 1:5] %>%
   )
 ```
 
+To resolve this, we turn to dimensionality reduction techniques. 
+
 # Projections
 
 ## PCA: Principal Component Analysis
@@ -115,7 +117,6 @@ ggplot(
   aes(
     x = PC_1,
     y = PC_2,
-    color = sample@meta.data$seurat_clusters
   )
 ) +
   geom_point() +
@@ -202,7 +203,7 @@ saveRDS(sample, "../sample_processed.RDS")
 
 # End
 
-> ⌨🔥 Exercise: Distribute the room in groups, and run the algorithms with 2, 5, 8, 12, and/ or 15 PCs.
+> ⌨🔥 Exercise: run the Algorithm with different number of PCs -> How does it infleunce the visualization?
 > Strive to avoid the aforementioned common pitfalls, specially the third one!
 
 > 🧭✨ Polls:

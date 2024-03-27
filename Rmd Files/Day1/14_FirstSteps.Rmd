@@ -86,6 +86,13 @@ options(download.file.method.GEOquery = "wget")
 
 #  Quality control {.unnumbered}
 
+This section, titled "Quality Control", is part of an R Markdown document. 
+ The count matrix from cellranger is located using sample_path. 
+ Instead of creating a new Seurat object from the count matrix, a pre-existing Seurat object is read from an RDS file. 
+ The Seurat object is subset to include only cells from the sample of interest 
+ The percentage of mitochondrial RNA in the cells, a common quality control metric, is computed. 
+ Finally, a heatmap is generated to visualize the first few genes and cells.
+
 ```{r}
 #| eval: true
 #| 
@@ -149,7 +156,7 @@ pheatmap::pheatmap(log10(sample[1:500, 1:200]@assays$RNA$counts + 1),
 ) # note: colorRampPalette returns another function.
 ```
 
-> 🧭✨ Polls:
+> 🧭✨ Task:
 >
 > How many genes and cells does this dataset have?
 >
@@ -163,28 +170,15 @@ pheatmap::pheatmap(log10(sample[1:500, 1:200]@assays$RNA$counts + 1),
 
 # Seurat Object
 
-Initialize the Seurat object with the raw (non-normalized data):
-
-```{r createSeurat}
-
-```
 
 > **Note:** usually on any data science context, we refer to our columns as features.
 > This is not the case for the count matrix.
 
 The `min.cells` and `min.features` arguments are first low-stringency **filters**.
-We are only loading cells with at least 200 genes detected, and we are only including those genes (features) that were detected in at least 3 cells.
-
-With these filters in this particular dataset, we are reducing the number of genes from `33000` to `14000`.
 
 The `SeuratObject` serves as a container that contains both data (like the count matrix) and analysis (like PCA, or clustering results) for a single-cell dataset.
 For example, the count matrix is stored in `sample[["RNA"]]@counts`.
 On RStudio, you can use `View(sample)` to inspect all the slots.
-
-> 🧭✨ Poll:
->
-> In cell "AAATTCGATTCTCA-1", how many reads map to gene "ACTB"?
-> Hint: subset the assay data, `sample@assays$RNA`.
 
 At the top level, `SeuratObject` serves as a collection of `Assay` and `DimReduc` objects, representing expression data and dimensional reductions of the expression data, respectively.
 The `Assay` objects are designed to hold expression data of a single type, such as RNA-seq gene expression, CITE-seq ADTs, cell hashtags, or imputed gene values.
@@ -252,12 +246,13 @@ So we give this as pattern (aka *regular expression*).
 Let's visualize the distribution of these metrics over all cells (as Violin plots):
 
 ```{r vlnplot}
+# ScPubr plotting function
 do_ViolinPlot(
   sample,
   features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
   ncol = 3, group.by = "orig.ident"
 )
-
+# Standard Seurat plotting function
 VlnPlot(
   sample,
   features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
@@ -266,8 +261,10 @@ VlnPlot(
 ```
 
 The `VlnPlot()` function plots the probability density function for all the specified variables (features).
+Note the similarities to SCpubR. SCpubR provides some nice defaults and many options in changing the code. 
 
-> 🧭✨ Poll: How many cells have less than 2000 counts in total (summed over all genes)?
+
+> 🧭✨ Task: How many cells have less than 2000 counts in total (summed over all genes)?
 > Hint: use `colSums`.
 
 Individually these variables may not fully discriminate dead cells, but could also reflect real biological properties (e.g. higher mitochondrial count).
@@ -323,7 +320,7 @@ summary(mask)
 sample <- sample[,mask]
 ```
 
-> 🧭✨ Poll: What's the current number of cells after this step?
+> 🧭✨ Task: What's the current number of cells after this step?
 
 ## Doublet Finding
 
@@ -371,12 +368,13 @@ These will be used downstream in dimensional reductions like PCA.
 <!--Some relevant publications for Feature selection and its importance are: [[1](https://www.nature.com/articles/nmeth.2645)], and [[2](https://doi.org/10.1016/j.cell.2019.05.031)].-->
 
 ```{r HVG}
-sample <- FindVariableFeatures(sample, selection.method = "vst", nfeatures = 2000) 
+sample <- FindVariableFeatures(sample, selection.method = "vst", 
+                                nfeatures = 2000) 
 ```
 
 <!--Note that there's also the `selection.method = "mvp"` that identifies variable features while controlling for the strong relationship between variability and average expression.-->
 
-> 🧭✨ Polls:
+> 🧭✨ Task:
 >
 > Which are the 3 most highly variable genes?
 > Hint: use `VariableFeatures()`.
@@ -464,7 +462,7 @@ One quick way to determine the 'dimensionality' of the dataset is by eyeballing 
 ElbowPlot(sample)
 ```
 
-> 🧭✨ Poll: How many components should we choose to include?
+> 🧭✨ Task: How many components should we choose to include?
 
 When picking the 'elbow' point, remember that **it's better to err on the higher side**!
 Also, if your research questions aim towards rare celltypes, you may definitely include more PCs (think about it in terms of the variance in gene expression values).
@@ -538,23 +536,40 @@ DimPlot(sample)
 ```
 
 # Cell Cycle Regression 
+
+# Cell Cycle Regression 
+
+In single-cell RNA-seq analysis, cell cycle regression is a crucial step to remove 
+unwanted variation attributed to cell cycle effects. In this section, we use the 
+Seurat package to perform cell cycle regression. We first identify S phase and 
+G2-M phase genes using Seurat's updated 2019 cell cycle gene sets. We then score 
+each cell in our dataset based on its expression of these genes using the 
+CellCycleScoring function. This assigns each cell an S phase score and a G2-M 
+phase score. Next, we perform Principal Component Analysis (PCA) using these cell 
+cycle genes. Finally, we regress out the cell cycle effects using the ScaleData 
+function in Seurat, which helps to ensure that downstream analysis is not 
+confounded by cell cycle effects. It's important to note that the active identity 
+of the Seurat object should be tracked throughout this process.
+
 ```{r}
 # Get S phase genes.
 s.genes <- Seurat::cc.genes.updated.2019$s.genes
 # Get G2-M phase genes.
 g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
 
-sample <- CellCycleScoring(sample, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+sample <- CellCycleScoring(sample, s.features = s.genes, g2m.features = g2m.genes, 
+set.ident = TRUE)
 
 #RidgePlot(sample, features =, ncol = 2,assay = "RNA",layer = "counts")
 ```
-
 
 ```{r}
 sample <- RunPCA(sample, features = c(s.genes, g2m.genes))
 DimPlot(sample)
 ```
 
+Whether cell cycle regression is actually necessary depends on the dataset and its structure. 
+Always inspect your data first before you decide whether or not cell cycle regression (or the regression of other metadata such as nCount_RNA ) is necessary.
 
 ```{r}
 sample <- ScaleData(sample, vars.to.regress = c("S.Score", "G2M.Score"), features = rownames(sample))
@@ -563,65 +578,16 @@ sample <- RunPCA(sample, features = VariableFeatures(object = sample))
 DimPlot(sample, reduction = "pca")
 
 ```
-**It's important that we keep track of our active identity.**
 
-# Clustering
 
-The next step follow the work pioneered by `PhenoGraph`, a robust computational method that partitions high-dimensional single-cell data into subpopulations.
-Building on these subpopulations, `PhenoGraph` authors developed additional methods to extract high-dimensional signaling phenotypes and infer differences in functional potential between subpopulations.
-<!-- For details, be sure to check the [research paper](http://www.ncbi.nlm.nih.gov/pubmed/26095251) cited by seurat developers. -->
-
-This subpopulations *could* be of biological relevance, retrieving these is our goal.
-The definition of such groupings depend upon the parameters.
-This algorithm in particular is the K Nearest Neighbors (KNN) graph that is constructed based on the euclidean distance in PCA space.
-For an example of building such a graph, imagine we took only two PCs (principal components) and had such an arrangement of cells like these dots in a 2D plane...
-
-```{r, echo=FALSE}
-#knitr::include_graphics("./images/KnnClassification.png")
-```
-
-On our example of k-NN classification for a cell highlighted in green color, the test sample (green dot) should be classified either to the group made of blue squares or to the subpopulation of cells here represented in red triangles.
-If k = 3 (solid line circle) it is assigned to the red triangles because there are 2 triangles and only 1 square inside the inner circle.
-If k = 5 (dashed line circle) it is assigned to the blue squares (3 squares vs. 2 triangles inside the outer circle).
-
-There's a drawback with the 'majority voting' scheme, the assignment of such clusters is biased towards the clusters that have greater number of members (especially when ties start appearing).
-For that reason, we'll refine the process by using a graph, where edge weights between any two cells is based on the shared overlap in their local neighborhoods (Jaccard similarity).
-
-$$
-J(A,B) = \frac{Intersect(A,B)}{Union(A,B)} = J(B,A)
-$$
-
-**If two datasets share the exact same members, their Jaccard Similarity Index will be 1. Conversely, if they have no members in common then their similarity will be 0.**
-
-All the process described before, including the use of Jaccard Similarity Index is performed using the `FindNeighbors()` function, and takes as input the previously defined dimensionality of the dataset (first 10 PCs).
-So the KNN is build using multidimensional space, but the rules we just saw for 2D still apply.
-
-> 🧭✨ Poll: Which is the default value of the parameter `K` that Seurat uses?
-> Hint: `help` yourselves by reading the docs!
-
-```{r findneighbours}
-sample <- FindNeighbors(sample, dims = seq_len(10))
-```
-
-We want to keep our clusters looking natural.
-That is, we want to have a modularity optimization on top of all.
-For that, we'll use the community search algorithm for graphs called Louvain.
-You can read more about it [here](https://scribe.froth.zone/louvain-algorithm-93fde589f58c?gi=8dce35ee2f75), or to read about it being applied to the biological problem at hand look into [this research paper](http://dx.doi.org/10.1088/1742-5468/2008/10/P10008).
-
-The `FindClusters()` function implements this procedure, and contains a `resolution` parameter that sets the 'granularity' of the downstream clustering, with increased values leading to a greater number of clusters.
-Usually, setting this parameter between `0.4` and `1.2` returns good results for single-cell datasets of around 3K cells.
-You can easily try various values and see how it performs.
-Optimal resolution often increases for larger datasets.
-
-```{r findclusters}
-sample <- FindClusters(sample, resolution = 0.5)
+# Finally save the sample object using the saveRDS function to ensure that we can load it later in the other documents
 saveRDS(object = sample, "../sample_processed.RDS")
 ```
 
 After this process, we have a new `seurat_clusters` column in our `meta.data` slot.
 Also, this is our new active identity!
 
-> 🧭✨ Poll: How many clusters did we find?
+> 🧭✨ Task: How many clusters did we find?
 
 > ⌨🔥 Exercise: Plot the PC1 vs. PC2 again, with the newest identities.
 

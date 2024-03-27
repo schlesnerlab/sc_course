@@ -51,31 +51,6 @@ cat("library path(s): ", .libPaths())
 
 # Load Data
 
-We'll be working with the data from our past notebook ("First steps"), let's quickly re-load and re-process again:
-
-```{r first_steps, warning=FALSE, eval = FALSE}
-pbmc <- Read10X(data.dir = "./datasets/filtered_gene_bc_matrices/hg19/") %>%
-  CreateSeuratObject(counts = ., project = "pbmc3k", min.cells = 3, min.features = 200)
-
-pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
-
-pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
-
-pbmc <- NormalizeData(pbmc, verbose = FALSE)
-
-pbmc <- FindVariableFeatures(pbmc, verbose = FALSE)
-
-pbmc <- ScaleData(pbmc, features = rownames(pbmc), verbose = FALSE)
-
-pbmc <- RunPCA(pbmc, features = VariableFeatures(pbmc), verbose = FALSE)
-
-pbmc <- FindNeighbors(pbmc, dims = seq_len(10), verbose = FALSE)
-
-pbmc <- FindClusters(pbmc, resolution = 0.5, verbose = FALSE)
-
-pbmc <- RunUMAP(pbmc, dims = seq_len(10), verbose = FALSE)
-```
-
 Next, we do our between-clusters DE analysis:
 
 ```{r de_steps}
@@ -95,79 +70,104 @@ markers.between.clusters <- FindAllMarkers(
 These methods have first been used for microarrays, and aim to draw conclusions ranked gene list from RNAseq experiments, scRNA, or any other OMICS screen.
 There are a number of tools and approaches - here we will focus only one common and practical approach.
 
-For more information, see: [clusterProfiler](https://yulab-smu.top/biomedical-knowledge-mining-book/clusterProfiler-dplyr.html).
-
 The aim is to draw conclusions as to what's the functional implications that we may be able to derive given a list of genes.
 To this end, we'd start with such list and then consult databases for the annotations.
 With this data, we can come up with scores to measure level of association.
 A gene set is an unordered collection of genes that are functionally related.
 
-## Gene Ontology
+There are a variety of packages which can do this types of analysis
+f.e.
+- `clusterProfiler`  
+- `enrichR` 
+- decoupleR
 
-[GO Terms](http://www.geneontology.org/) are semantic representations in a curated database that defines concepts/classes used to describe gene function, and relationships between these concepts.
-GO terms are organized in a directed acyclic graph, where edges between terms represent parent-child relationship.
-It classifies functions along three aspects:
+Here will will use decoupleR as a one stop stop for all types of enrichment analysis. 
+The nice thing about decoupleR is that a.) it can be used both for bulk and single cell RNAseq
+and b.) the developers are from the Saez-Rodriguez Group from the Institute for Computational Biomedicine at the University Hospital here in Heidelberg https://saezlab.org/#tools
 
--   MF: Molecular Function, molecular activities of gene products
--   CC: Cellular Compartment, where gene products are active
--   BP: Biological Processes, pathways and larger processes made up of the activities of multiple gene products
+## Databases
 
-<!-- rbioapi::rba_reactome_analysis(input = genes.1, p_value = 0.1) -->
+Before we start any type of functional enrichment analysis, we need to decide what databases we want to use.
 
-## enrichR
+Popular databases include:
+- MsigDB (https://www.gsea-msigdb.org/gsea/msigdb)
+- KEGG (https://www.genome.jp/kegg/)
+- Reactome (https://reactome.org/)
+- GO (https://geneontology.org/)
+- PanglaoDB (https://panglaodb.se/)
+- Omnipath (https://omnipathdb.org/)
 
-The package is already loaded.
-But we need to select which databases to connect.
-There are more than 200 databases available, you can get a data frame with details of these using `listEnrichrDbs()`.
-For this and the following to work you need a working internet connection.
+Omnipath is also a development from the Saez-Rodriguez Group and is a comprehensive collection of literature-curated signaling pathways and regulatory networks. 
+With the OmnipathR package we can access database to run enrichment against. 
+
+
+First lets try to assign cell types by using marker genes from the PanglaoDB database.
 
 ```{r dbs}
+# Get data
 decoupleR::get_resource("PanglaoDB") -> panglao_data
-
-panglao_data %>% dplyr::mutate(human = as.logical(human)) %>%dplyr::filter(human) %>% dplyr::mutate(canonical_marker = as.logical(canonical_marker)) %>% dplyr::filter(canonical_marker) %>% dplyr::filter("human_sensitivity" > 0.5) -> panglao_human_marker
+# Tidyverse syntax to get data
+panglao_data %>% dplyr::mutate(human = as.logical(human)) %>%  # create new column and format as logical vector
+dplyr::filter(human) %>% # Only keep rows with "TRUE" in the "human" column
+dplyr::mutate(canonical_marker = as.logical(canonical_marker)) %>%  # create new column and format as logical vector
+dplyr::filter(canonical_marker) %>% # Only keep rows with "TRUE" in the "canonical_marker" column
+dplyr::filter(human_sensitivity > 0.5) -> panglao_human_marker # Only keep rows with a value higher than 0.5 in human_sensitivity
 
 ```
 
-```{r enrichr}
-mat <- as.matrix(sample@assays$RNA$data)
-panglao_human_marker<- panglao_human_marker[!duplicated(panglao_human_marker[,c("cell_type", "genesymbol")]),]
-ora_enrich <- decoupleR::run_aucell(
-    mat=mat,
-    network=panglao_human_marker,
-    .source='cell_type',
-    .target='genesymbol',
-    minsize=3,
-)
 
-sample[["panglao_aucell"]] <-   ora_enrich %>%
+Now that we have the data, we can run the enrichment analysis. 
+DecoupleR provides a whole library of enrichment methods. For times sake we will only use the `run_aucell` method.
+AUCell is a method to infer cell type activities from single-cell RNA-seq data. 
+It is based on the area under the ROC curve (AUC) of the cumulative gene expression distribution of marker genes for a given cell type.
+Read more at the original AUCell publication (https://www.nature.com/articles/nmeth.4463#Sec2).
+
+```{r run }
+mat <- as.matrix(sample@assays$RNA$data) # Aucell requires an input matirx WARNING This transforms our sparse matrix to dense and increases memory usage!!!
+panglao_human_marker<- panglao_human_marker[!duplicated(panglao_human_marker[,c("cell_type", "genesymbol")]),] # We need to remove some duplicate markers
+ora_enrich <- decoupleR::run_aucell(
+    mat=mat, #out data matrix
+    network=panglao_human_marker, # our network is the database we are analyizing
+    .source='cell_type', # Column that contains the cell type
+    .target='genesymbol', # Column that contains the gene symbol
+    minsize=3, # Minimum size of the gene set
+) 
+
+sample[["panglao_aucell"]] <-   ora_enrich %>% # Were we process the long matrix to a wide matrix and save it as a new assay in Seurat
   pivot_wider(id_cols = 'source', names_from = 'condition',
               values_from = 'score') %>%
   column_to_rownames('source') %>%
   Seurat::CreateAssayObject(.)
 # Scale the data
-sample <- ScaleData(sample, assay = "panglao_aucell")
-sample@assays$panglao_ora$data <- sample@assays$panglao_ora$scale.data
+sample <- ScaleData(sample, assay = "panglao_aucell")  # We scale the data
+sample@assays$panglao_ora$data <- sample@assays$panglao_ora$scale.data # We save the scaled data in the data slot
 ```
+
+Now that we have run the enrichment analysis we can visualize the results.
+First we select the top 3 cell types enriched per cluster and plot these across all clusters as 
+a heatmap.
 
 ```{r}
 n_tfs <- 3
 # Extract activities from object as a long dataframe
-df <- t(as.matrix(sample@assays$panglao_aucell@scale.data)) %>%
-  as.data.frame() %>%
-  mutate(cluster = Idents(sample)) %>%
-  pivot_longer(cols = -cluster, names_to = "source", values_to = "score") %>%
-  group_by(cluster, source) %>%
-  summarise(mean = mean(score))
+df <- t(as.matrix(sample@assays$panglao_aucell@scale.data)) %>% # we transpose the scaled data from the assay
+  as.data.frame() %>%# we convert it to a dataframe
+  mutate(cluster = Idents(sample)) %>% # we add the cluster information as a new column
+  pivot_longer(cols = -cluster, names_to = "source", values_to = "score") %>% # we convert the dataframe to a long format
+  group_by(cluster, source) %>% # we group the data by cluster and source
+  summarise(mean = mean(score)) # we calculate the mean of the score and save it as a new column
 
+# Get top 3 cell types per cluster
 top_3_cell_types <- df %>%
     group_by(cluster) %>%
     top_n(3, mean)
 
+# Get all top cell types
 all_top_cell_types <- top_3_cell_types %>% pull(source) %>% unique()
-
+# Get top activities matrix
 top_acts_mat <- df %>%
-  filter(source %in% all_top_cell_types) %>%
-  pivot_wider(id_cols = 'cluster', names_from = 'source',
+  filter(source %in% all_top_cell_types) %>% # we filter the data to only include the top cell types
+  pivot_wider(id_cols = 'cluster', names_from = 'source', # we convert the data to a wide format
               values_from = 'mean') %>%
   column_to_rownames('cluster') %>%
   as.matrix()
@@ -176,27 +176,38 @@ top_acts_mat <- df %>%
 palette_length = 100
 my_color = colorRampPalette(c("Darkblue", "white","red"))(palette_length)
 
-my_breaks <- c(seq(-3, 0, length.out=ceiling(palette_length/2) + 1),
-               seq(0.05, 3, length.out=floor(palette_length/2)))
+my_breaks <- c(seq(-3, 0, length.out=ceiling(palette_length/2) + 1), # we create a break point for the color scale
+               seq(0.05, 3, length.out=floor(palette_length/2))) # 
 
 # Plot
-pheatmap(top_acts_mat, border_color = NA,scale = "row", color=my_color, breaks = my_breaks)
+pheatmap(top_acts_mat, border_color = NA,scale = "row", color=my_color, breaks = my_breaks) # we plot the heatmap
 ```
 
 > ⌨🔥 Exercise(s):
->
-> 1.  Understand the format and interpret the output `result.1`.
-> 2.  What is the most significantly enriched molecular function? which genes are the base for it?
-> 3.  Would you get the same result if you changed the number of marker genes in the input? Try it out.
+> - Check the results also for each cluster. You can use the `do_ViolinPlot` function from the SCpubr package to visualize the results
+> in that case you can use the `features` argument to specify the cell types you want to plot and choose the assay you want to plot with the `assay` argument.
+> - Try to assign cell types to each of the clusters. It may not always be possible to assign a cell type to each cluster, but it is a good exercise to try.
 
-We can also produce nice graphical summaries:
+## Functional enrichments using decoupleR and progeny.
+
+Progeny is a database of gene regulatory networks that can be used to infer pathway activities from single-cell RNA-seq data.
+This database is also developed by the Saez-Rodriguez Group and is a comprehensive collection of literature-curated signaling pathways and regulatory networks.
+
+We will explore some of the processes that may be active here. This time we will 
+fit multivariate Linear models to each of our cells. 
+
+![](https://decoupler-py.readthedocs.io/en/latest/_images/mlm.png)
+Here we fit a linear model that predicts gene expression based off of the genes active in each of the pathways. 
+This provides us with a score for each pathway in each cell.
+
+> ⌨🔥 Exercise(s): Which pathways are available in progeny. 
 
 ```{r}
 
-net <- get_progeny(organism = 'human', top = 500)
+net <- get_progeny(organism = 'human', top = 500) # Pull human progeny results
 net
 
-mat <- as.matrix(sample@assays$RNA@data)
+mat <- as.matrix(sample@assays$RNA@data) # create matrix of normalized data
 
 # Run mlm
 acts <- run_mlm(mat=mat, network =net, .source='source', .target='target',
@@ -204,6 +215,9 @@ acts <- run_mlm(mat=mat, network =net, .source='source', .target='target',
 acts
 
 ```
+
+Similar to before after running the enrichment we save the results as a new 
+seurat assay.
 
 ```{r}
 # Extract mlm and store it in pathwaysmlm in data
@@ -221,6 +235,13 @@ sample <- ScaleData(sample, assay = "pathwaysmlm")
 sample@assays$pathwaysmlm@data <- sample@assays$pathwaysmlm@scale.data
 ```
 
+And here we can visualize the results. As an example i chose to visualize the 
+MAPK pathway activity inferred from the progeny database.
+
+We can also visualize MAPK activity with Featureplots, or use NebulosaPlots
+to also reflect cell density in the plot. Violin plots can be used to compare
+activity between clusters.
+
 ```{r}
 p1 <- DimPlot(sample, reduction = "umap", label = TRUE, pt.size = 0.5) + 
   NoLegend() + ggtitle('Cell types')
@@ -230,14 +251,23 @@ p2 <- (do_NebulosaPlot(sample, features = c("MAPK"),) &
 p1 | p2
 
 ```
+
+> ⌨🔥 Exercise(s): - Have a look at the other progeny pathways. 
+
 ### Compare with results from Publication
 
+As a final part lets compare our results with the results from the original publication.
+The authros provide an excel table with the top 50 markers for each cell type.
+I downloaded the excel file and will use it to compare the results.
+
 ```{r, fig.width =12, fig.height=12}
-excel_data <- readxl::read_excel("../1-s2.0-S2666379123004263-mmc3.xlsx", sheet = "OD top50 markers",skip = 1)
+# First we load the excel file. In R we can use the readxl package to read excel files.
+excel_data <- readxl::read_excel("../1-s2.0-S2666379123004263-mmc3.xlsx", sheet = "OD top50 markers",
+                      skip = 1) # This reads the excel file and skips the first row
 
-excel_data %>% pivot_longer(cols = everything()) -> excel_long
+excel_data %>% pivot_longer(cols = everything()) -> excel_long # We convert the data to a long format so that it works with AUCEll
 
-acts_paper <- decoupleR::run_aucell(mat, network = excel_long, .source = "name", .target = "value")
+acts_paper <- decoupleR::run_aucell(mat, network = excel_long, .source = "name", .target = "value") # Anw we run AUCell and now use the excel data as the network
 
 # Extract mlm and store it in pathwaysmlm in data
 sample[['paper_aucell']] <- acts_paper %>%
@@ -252,3 +282,11 @@ SCpubr::do_FeaturePlot(sample, assay = "paper_aucell", features = colnames(excel
                        
 ```
 
+> ⌨🔥 Exercise(s): - Score some of the marker genes directly using FeaturePlots. 
+> - check the original publication for other genes of interest and score them using FeaturePlots https://www.sciencedirect.com/science/article/pii/S2666379123004263
+
+In conclusion, scoring genes and processes in single cells can help derive biological insights from single cell data.
+However, these scores are heavily dependent on the database and methods used. 
+
+For cell type annotation, expert knowledge is a huge boon in knowing which marker genes represent certain cell types, or 
+which marker genes in a certain cell type, tissue or disease are most relevant.
