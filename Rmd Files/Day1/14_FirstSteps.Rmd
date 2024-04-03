@@ -116,19 +116,19 @@ sample_name <- "OE0145-IDH_NCH6341" # Name of the sample.
 
 # Load samples.
 mt_pattern <- "^MT-"
-sample_path <- "/omics/groups/OE0436/internal/heyer/scourse/sc_course/data/filtered/BT322.filtered_gene_matrices" # Path to where the count matrix from cellranger (either filtered or raw, your choice) is located.
+sample_path <- "/omics/groups/OE0436/internal/heyer/scourse/sc_course/data/filtered_feature_bc_matrix" # Path to where the count matrix from cellranger (either filtered or raw, your choice) is located.
 
 
 # Read the count matrix and generate a Seurat object.
-#sample <- Seurat::Read10X(data.dir = sample_path) %>%
-#      		Seurat::CreateSeuratObject(project = sample_name, min.cells = 3, min.features = 200)
+sample <- Seurat::Read10X(data.dir = sample_path) %>%
+      		Seurat::CreateSeuratObject(project = sample_name, min.cells = 3, min.features = 200)
 
-sample <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
+sample_processed <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
 Seurat::DefaultAssay(sample) <- "RNA"
 #count_mat <- read
 
 sample@meta.data$orig.ident %>% unique()
-sample <- sample[,sample$orig.ident == "OE0145-IDH_NCH6341" ]
+sample_processed <- sample_processed[,sample_processed$orig.ident == "OE0145-IDH_NCH6341" ]
 # Compute percentage of mitochondrial RNA in the cells.
 sample[["percent.mt"]] <- Seurat::PercentageFeatureSet(object = sample,assay = "RNA",
                                                        pattern = mt_pattern)

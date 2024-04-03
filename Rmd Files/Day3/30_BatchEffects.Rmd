@@ -72,84 +72,15 @@ Here we now use the preprocessed data from GEO, which is directly available as a
 sample <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
 Seurat::DefaultAssay(sample) <- "RNA"
 
-# Global parameters. Used throughout the whole analysis.
-sample_name_1 <- "OE0145-IDH_NCH6341" # Name of the sample.
-sample_name_2 <- "OE0145-IDH_ACB_AD_540" 
-
-seurat_6341 <- readRDS("../sample_processed.RDS")
-seurat_781 <- sample[,sample$orig.ident == sample_name_2 ]
-```
-
-
-```{r}
-#QC
-
-seurat_781[["percent.mt"]] <- PercentageFeatureSet(seurat_781, pattern = "^MT-")
-
-do_ViolinPlot(
-  seurat_781,
-  features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
-  ncol = 3, group.by = "orig.ident"
-)
+# 
 
 ```
 
-```{r featurescatter}
-plot1 <- FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "orig.ident")
-plot2 <- FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "orig.ident")
-plot3 <- FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "SPARCL1",slot = "counts", group.by = "orig.ident")
-plot1 / plot2
-plot3
-```
 
-```{r filter, echo=FALSE}
+> ⌨🔥 Exercise: Analyze this seurat object. 
+- What data is saved. How many samples? how many cells? 
+- What analysis layers are there?
 
-# Perform QC on the sample.
-# Get cutoffs.
-counts_lower_cutoff <- 1000 # Minimum amount of UMIs per cell.
-genes_lower_cutoff <- 500 # Minimum amount of genes per cell.
-mito_higher_cutoff <- 5 # Maximum amount of mitochondrial RNA per cell.
-
-# Generate the first subset.
-count_mask <- seurat_781$nCount_RNA > counts_lower_cutoff
-gene_mask <- seurat_781$nFeature_RNA > genes_lower_cutoff
-mito_mask <- seurat_781$percent.mt < mito_higher_cutoff
-mask <- count_mask & gene_mask & mito_mask
-summary(mask)
-seurat_781 <- seurat_781[, mask] # Subset the sample.
-
-# Upper cutoffs are determined by the mean and standard deviation of the remaining cells.
-counts_higher_cutoff <- mean(seurat_781$nCount_RNA) + 3 * stats::sd(seurat_781$nCount_RNA)
-genes_higher_cutoff <- mean(seurat_781$nFeature_RNA) + 3 * stats::sd(seurat_781$nFeature_RNA)
-
-
-# Second subset based on the mean and standard deviation of the remaining cells.
-count_mask <- seurat_781$nCount_RNA < counts_higher_cutoff
-gene_mask <- seurat_781$nFeature_RNA < genes_higher_cutoff
-mask <- count_mask & gene_mask
-summary(mask)
-
-seurat_781 <- seurat_781[,mask]
-```
-
-
-```{r}
-sce = scDblFinder(
-    SingleCellExperiment(
-        list(counts=seurat_781@assays$RNA$counts),
-    ) 
-)
-doublet_score = sce$scDblFinder.score
-doublet_class = sce$scDblFinder.class
-seurat_781$scDblFinder.score <- sce$scDblFinder.score
-seurat_781$scDblFinder.class <- sce$scDblFinder.class
-hist(seurat_781$scDblFinder.score, breaks = "FD")
-FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "nFeature_RNA",group.by = "scDblFinder.class")
-```
-> 🧭✨ Poll:
->
-> [Which sequencing technologies are retained in the subset dataset?](https://PollEv.com/multiple_choice_polls/j2zBwetamS5edfxq0JDs8/respond)
->
 > How many cells were sequenced in each experiment?
 
 ## Revisit UMAP
@@ -157,44 +88,20 @@ FeatureScatter(seurat_781, feature1 = "nCount_RNA", feature2 = "nFeature_RNA",gr
 Plot UMAP embedding for the subset dataset.
 Inspect the cell separation by cell type and by sequencing technology.
 
+> ⌨🔥 Exercise: plot the original UMAP by the authors with our umap. 
+> Hint: group.by "orig.ident" what changes. you can choose the reduction with 
+> the reduction parameter in R
 
-> ⌨🔥 Exercise: plot gene expression
->
-> In the previous course units, you have learned to call differentially expressed genes with Seurat.
-> In this task, we ask you to: - call genes differentially expressed between cells sequenced with the smartseq2 technology and those with the celseq technology - plot a violin plot for the top gene - plot a feature plot for the top gene
+```{r}
 
-> 🧭✨ Poll: [What is the name of the top DE gene ?](https://PollEv.com/multiple_choice_polls/D5BfavArbiXgs8QeHvDNn/respond)
+do_DimPlot(sample)
+sample <- FindNeighbors(sample, reduction = "pca")
 
-Here's our proposed solution:
-
-```{r merge normalize and plot}
-merged_seurat <- merge(seurat_6341, seurat_781)
-rm("sample","seurat_6341", "seurat_781")
-gc()
-merged_seurat <- NormalizeData(merged_seurat)
-merged_seurat <- FindVariableFeatures(merged_seurat, selection.method = "vst", nfeatures = 2000) 
-
-(plot1 <- VariableFeaturePlot(merged_seurat))
-
-(plot2 <-
-  LabelPoints(
-    plot = plot1,
-    points = head(VariableFeatures(merged_seurat), 10),
-    repel = TRUE
-  ))
-merged_seurat <- ScaleData(merged_seurat, features = rownames(merged_seurat))
+sample <- RunUMAP(sample, dims = 1:10, reduction = "pca", reduction.name = "umap.pca")
 
 
 ```
-```{r runpca}
-merged_seurat <- RunPCA(merged_seurat, features = VariableFeatures(object = merged_seurat))
 
-do_DimPlot(merged_seurat, reduction = "pca", group.by = "orig.ident",plot.axes = T)
-ElbowPlot(merged_seurat)
-merged_seurat <- FindNeighbors(merged_seurat, dims = seq_len(8))
-merged_seurat <- RunUMAP(merged_seurat, dims = 1:8, n.neighbors = 20, verbose = FALSE,)
-do_DimPlot(merged_seurat, reduction = "umap", group.by = "orig.ident")
-```
 
 ## What options are there to mitigate batch effects ?
 
@@ -209,16 +116,22 @@ Let's now explore some options of mitigating batch effects:
 
 ## Seurat Integration: theory
 
-![Seurat](images/fx1_lrg.jpg){width="70%,height=70%"}
+![Seurat](../images/fx1_lrg.jpg){width="70%,height=70%"}
 
 Seurat authors developed a strategy to "anchor" diverse datasets together: - Joint dimentional reduction - Mutual nearest neighbours ("anchors") - Filter for high-scoring anchors - Known bottleneck: rare cell types
+
+If you want to learn more about the backround of scRNAseq integration. Have 
+a look at the following review https://www.nature.com/articles/s41587-021-00895-7
+
 
 ## Seurat Integration: prep datasets
 
 Prior to the integration, we want to normalize each dataset to be integrated separately.
+With Seurat v5 the workflow for doing integration has changed significantly. 
 
 ```{r seurat_integrate1}
 
+merged_seurat <- sample
 # We normalize first using SCTransform and removing the effect of UMIs, genes and percent.mt.
 # Process followed as in https://github.com/satijalab/seurat/issues/1679#issuecomment-557781838
 merged_seurat[["RNA"]] <- split(merged_seurat[["RNA"]], f = merged_seurat$orig.ident)
@@ -228,12 +141,15 @@ merged_seurat <- ScaleData(merged_seurat)
 merged_seurat <- RunPCA(merged_seurat)
 merged_seurat <- FindNeighbors(merged_seurat)
 merged_seurat <- RunUMAP(merged_seurat, reduction = "pca", dims = 1:30)
+
+# Harmony Integration. https://portals.broadinstitute.org/harmony/articles/quickstart.html
 merged_seurat <- IntegrateLayers(object = merged_seurat, method = HarmonyIntegration, orig.reduction = "pca",
                        new.reduction = 'harmony', verbose = FALSE)
 merged_seurat <- FindNeighbors(merged_seurat, reduction = "harmony", dims = 1:30)
 merged_seurat <- FindClusters(merged_seurat, resolution = 2, cluster.name = "harmony_clusters")
 merged_seurat <- RunUMAP(merged_seurat, reduction = "harmony", dims = 1:30, reduction.name = "umap.harmony")
 
+# Anchor-based RPCA integration (method=RPCAIntegration)
 merged_seurat <- IntegrateLayers(object = merged_seurat, method = RPCAIntegration,
   orig.reduction = "pca", new.reduction = 'integrated.rpca',
   verbose = FALSE)
@@ -241,13 +157,15 @@ merged_seurat <- FindNeighbors(merged_seurat, reduction = "integrated.rpca", dim
 merged_seurat <- FindClusters(merged_seurat, graph.name = "RNA_snn",resolution = 2, cluster.name = "rpca_clusters")
 merged_seurat <- RunUMAP(merged_seurat, reduction = "integrated.rpca", dims = 1:30, reduction.name = "umap.rpca")
 
-# Normalize using Harmony. The effect to remove is the orig.ident metadata column (from where each sample comes from).
-#merged_seurat <- SCTransform(object = merged_seurat)
-#merged_seurat <- IntegrateLayers(object = merged_seurat, method = CCAIntegration,
-#  orig.reduction = "pca", new.reduction = "integrated.rpca",assay = "RNA",
-#   verbose = FALSE)
-
 ```
+
+The code above runs a UMAP without any integration, but also runbs integraiton 
+via Harmony and Anchor based rPCA using Seurat.
+
+Now have a look at the new low dimensional representations. 
+
+> Exercise: Compare the different methods in the UMAP space
+> How well have samples and cell types integrated? What differences do you see?
 
 ```{r, fig.width = 12}
 p1 <- DimPlot(
@@ -266,13 +184,10 @@ patchwork::wrap_plots(p1)
 Let's clean up some redundant objects from memory.
 
 ```{r cleanup}
-rm(list = c("panc.list", "features", "anchors"))
 gc()
 ```
 
-Let's have a brief look at the panc.combined dataset - a new Assay has been created by the integration procedure.
 
-> 🧭✨ Poll: What is the new assay called?]
 
 ## Process the newly integrated dataset
 
@@ -281,9 +196,6 @@ After the integration, data scaling on the new assay is necessary, as well as ca
 ```{r process_integrated}
 # specify that we will perform downstream analysis on the corrected data note that the
 # original unmodified data still resides in the 'RNA' assay
-merged_seurat <- Seurat::FindNeighbors(merged_seurat, dims = 1:30, reduction = "harmony")
-merged_seurat <- Seurat::FindClusters(merged_seurat, dims = 1:30, reduction = "harmony")
-merged_seurat <- Seurat::RunUMAP(merged_seurat, dims = 1:30, reduction = "harmony",reduction.name = "umap_harmony")
 
 do_DimPlot(merged_seurat, reduction = "umap_", group.by = "orig.ident")
 do_DimPlot(merged_seurat, reduction = "umap_harmony", group.by = c("orig.ident", "New_NMF_labelling" ))
@@ -298,12 +210,6 @@ do_DimPlot(merged_seurat, reduction = "umap_harmony", group.by = c("orig.ident",
 
 We can also compare the distribution of cell tech labels before and after integration.
 
-```{r b_a_umap, echo=FALSE,fig.width=12,fig.show='hold',fig.align='center'}
-do_DimPlot(merged_seurat, reduction = "umap_harmony", group.by = c("New_NMF_labelling") )
-do_DimPlot(merged_seurat, reduction = "umap_harmony", group.by = c("orig.ident") )
-
-```
-
 > ⌨🔥 Exercise: plot gene expression after integration
 >
 > You have previously plotted the expression of a DE gene between the sequencing technologies on the dataset before integration.
@@ -312,7 +218,7 @@ do_DimPlot(merged_seurat, reduction = "umap_harmony", group.by = c("orig.ident")
 
 Here's our proposed solution:
 ```{r}
-do_FeaturePlot(merged_seurat, features = "ASIC1", reduction = "umap_harmony")
+do_FeaturePlot(merged_seurat, features = "", reduction = "umap_harmony")
 
 ```
 
