@@ -74,32 +74,6 @@ When working with your own data, especially with larger datasets it is important
 save your progress as you work. 
 
 
-# Heatmaps
-
-Clusters can be shown on heatmaps:
-In a Heatmap we can visualize clustering, to illustrate some of the expression differences between these. 
-However it does not resolve issues due to the dimensionality of the dataset. 
-
-```{r heatmap, echo=FALSE}
-sample<- readRDS("../sample_processed.RDS")
-ann <- sample@meta.data %>%
-  select(seurat_clusters) %>%
-  arrange(seurat_clusters)
-
-# extract CELL-PC matrix, subset, transpose, and plot
-sample@reductions$pca@cell.embeddings[rownames(ann), 1:5] %>%
-  t() %>%
-  pheatmap::pheatmap(
-    cluster_cols = FALSE,
-    cluster_rows = FALSE,
-    show_colnames = FALSE,
-    annotation_col = ann,
-    annotation_legend = FALSE
-  )
-```
-
-To resolve this, we turn to dimensionality reduction techniques. 
-
 # Projections
 
 ## PCA: Principal Component Analysis
@@ -179,8 +153,6 @@ Unsurprisingly there are again many parameters that can change the visualization
 > Play around with a couple of values!
 
 > 🧭✨ Poll: Run the UMAP without seed a couple of times and compare.
-> Is it more affected than t-SNE?
-> Or less?
 > Hint: use the `seed.use` argument.
 
 ### Take Away

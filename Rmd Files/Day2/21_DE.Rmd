@@ -50,23 +50,7 @@ We also will want to visualize on the UMAP projections, so make sure you have al
 ```{r initial, warning=FALSE}
 sample <- readRDS("../sample_processed.RDS")
 
-sample[["percent.mt"]] <- PercentageFeatureSet(sample, pattern = "^MT-")
 
-sample <- subset(sample, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
-
-sample <- NormalizeData(sample, verbose = FALSE)
-
-sample <- FindVariableFeatures(sample, verbose = FALSE)
-
-sample <- ScaleData(sample, features = rownames(sample), verbose = FALSE)
-
-sample <- RunPCA(sample, features = VariableFeatures(sample), verbose = FALSE)
-
-sample <- FindNeighbors(sample, dims = seq_len(10), verbose = FALSE)
-
-sample <- FindClusters(sample, resolution = 0.5, verbose = FALSE)
-
-sample <- RunUMAP(sample, dims = seq_len(10), verbose = FALSE)
 ```
 
 ## Clustering
@@ -139,6 +123,8 @@ umap <- do_DimPlot(sample, reduction = "umap", label = TRUE )
 > Would UMAP be affected?
 >
 > Would it be any difference if we ran `FindNeighbors` and `FindClusters` but only after UMAP?
+
+
 
 # Searching for Markers
 

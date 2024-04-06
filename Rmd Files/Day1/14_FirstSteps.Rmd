@@ -14,6 +14,10 @@ output:
 
 # Setup
 
+Welcome to the first steps of the RNAseq Course. 
+
+Each document covers part of the analysis pipeline. We will be using the Seurat 
+package for the analysis.
 ```{r setup}
 
 # This setup block loads the required packages for the course
@@ -46,6 +50,12 @@ cat("work directory: ", getwd())
 cat("\n")
 cat("library path(s): ", .libPaths())
 ```
+
+## Links in case you need help
+
+- Seurat documentation: [Seurat](https://satijalab.org/seurat/)
+- SCpubR documentation: [SCpubR](https://enblacar.github.io/SCpubr-book/)
+- Rstudio Cheatsheets: [Rstudio Cheatsheets](https://www.rstudio.com/resources/cheatsheets/)
 
 # Load Data
 
@@ -120,32 +130,30 @@ sample_path <- "/omics/groups/OE0436/internal/heyer/scourse/sc_course/data/filte
 
 
 # Read the count matrix and generate a Seurat object.
-sample <- Seurat::Read10X(data.dir = sample_path) %>%
-      		Seurat::CreateSeuratObject(project = sample_name, min.cells = 3, min.features = 200)
+sample <- Seurat::Read10X(data.dir = sample_path)  # 
+sample <- Seurat::CreateSeuratObject(sample, project = sample_name, min.cells = 3, min.features = 200)
 
-sample_processed <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
-Seurat::DefaultAssay(sample) <- "RNA"
-#count_mat <- read
 
-sample@meta.data$orig.ident %>% unique()
-sample_processed <- sample_processed[,sample_processed$orig.ident == "OE0145-IDH_NCH6341" ]
 # Compute percentage of mitochondrial RNA in the cells.
-sample[["percent.mt"]] <- Seurat::PercentageFeatureSet(object = sample,assay = "RNA",
+sample[["percent.mt"]] <- Seurat::PercentageFeatureSet(object = sample,
+                                                       assay = "RNA",
                                                        pattern = mt_pattern)
 
-
-#sample <- sample[, mask] # Subset the sample.
 ```
 
 
 This data is extremely big and sparse, this variable is now an object of type `dgCMatrix`.
+Sparse Matrices save a lot of memory by only storing the non-zero values.
+Consider; if we saved a matrix of 10000x10000 with only 1% of the values being non-zero, we would save 99% of the memory by using a sparse matrix.
+
 Lets examine a few genes in the first thirty cells:
 
 
-And, we can have a heatmap of the first few genes and cells:
+And, we can have a heatmap of the first few genes and cells. For 
+this we use the "pheatmap" function from the pheatmap package. 
 
 ```{r explore2, echo=FALSE, out.width="50%"}
-pheatmap::pheatmap(log10(sample[1:500, 1:200]@assays$RNA$counts + 1),
+pheatmap::pheatmap(log10(sample@assays$RNA$counts[1:500, 1:200] + 1),
   show_rownames = F,
   show_colnames = F,
   cluster_rows = F,
@@ -169,9 +177,7 @@ pheatmap::pheatmap(log10(sample[1:500, 1:200]@assays$RNA$counts + 1),
 > ⌨🔥 Exercise: Plot the histogram of counts for the previous top gene over all cells
 
 # Seurat Object
-
-
-> **Note:** usually on any data science context, we refer to our columns as features.
+>  **Note:** usually on any data science context, we refer to our columns as features.
 > This is not the case for the count matrix.
 
 The `min.cells` and `min.features` arguments are first low-stringency **filters**.
@@ -192,9 +198,9 @@ For class-specific details, including more in depth description of the slots, pl
     -   [Object Information](https://github.com/satijalab/seurat/wiki/Seurat#object-information)
     -   [Data Access](https://github.com/satijalab/seurat/wiki/Seurat#data-access)
 
--   [`Assay`](https://github.com/satijalab/seurat/wiki/Assay)
+-   [`Assay`](https://satijalab.org/seurat/articles/announcements.html)
 
-    -   [Slots](https://github.com/satijalab/seurat/wiki/Assay#slots)
+    -   [Slots](https://satijalab.org/seurat/articles/announcements.html)
     -   [Object Information](https://github.com/satijalab/seurat/wiki/Assay#object-information)
     -   [Data Access](https://github.com/satijalab/seurat/wiki/Assay#data-access)
 
@@ -203,6 +209,11 @@ For class-specific details, including more in depth description of the slots, pl
     -   [Slots](https://github.com/satijalab/seurat/wiki/DimReduc#slots)
     -   [Object Information](https://github.com/satijalab/seurat/wiki/DimReduc#object-information)
     -   [Data Access](https://github.com/satijalab/seurat/wiki/DimReduc#data-access)
+
+
+When accessing data from a Seurat object we use the `@` operator.
+For example with `sample@assays$RNA$counts` we access the count matrix.
+We can view metadata with `sample@meta.data`.
 
 # Quality Control
 
@@ -276,9 +287,13 @@ All those are **features**
 plot1 <- FeatureScatter(sample, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "orig.ident")
 plot2 <- FeatureScatter(sample, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "orig.ident")
 plot3 <- FeatureScatter(sample, feature1 = "nCount_RNA", feature2 = "SPARCL1",slot = "counts", group.by = "orig.ident")
+
+# Here we can use functionality from the "patchwork" package to combine plots with / or \ operators
 plot1 / plot2
 plot3
 ```
+
+> Exercise: 
 
 # Filtering and Transformation
 
@@ -287,16 +302,15 @@ plot3
 Based on cell-specific features we can subset our `SeuratObject` to keep only the 'cells' in good state.
 In this case, based on the previous Violin plots, we'll use the following criteria:
 
--   Unique feature counts over 2500 or below 200.
--   $>5%$ mitochondrial counts.
-
+> Excericise:
+> Based on the plots above -> Choose your cutoffs
 ```{r filter, echo=FALSE}
 
 # Perform QC on the sample.
 # Get cutoffs.
-counts_lower_cutoff <- 1000 # Minimum amount of UMIs per cell.
-genes_lower_cutoff <- 500 # Minimum amount of genes per cell.
-mito_higher_cutoff <- 5 # Maximum amount of mitochondrial RNA per cell.
+counts_lower_cutoff <-  # Minimum amount of UMIs per cell.
+genes_lower_cutoff <-  # Minimum amount of genes per cell.
+mito_higher_cutoff <-  # Maximum amount of mitochondrial RNA per cell.
 
 # Generate the first subset.
 count_mask <- sample$nCount_RNA > counts_lower_cutoff
@@ -324,7 +338,7 @@ sample <- sample[,mask]
 
 ## Doublet Finding
 
-Checking for doublets
+Checking for doublets.
 
 ```{r}
 
@@ -351,6 +365,8 @@ Normalized values are stored in `sample[["RNA"]]@data`.
 ```{r norm}
 sample <- NormalizeData(sample,)
 ```
+
+> Excercise: Now plot the distribution of the normalized data across the dataset. 
 
 ## Informative Genes
 
@@ -535,6 +551,8 @@ Idents(sample) <- "mt.categories"
 DimPlot(sample)
 ```
 
+> Exercise: Choose another metadata column and analyze if it may be influencing our count data. 
+
 # Cell Cycle Regression 
 
 # Cell Cycle Regression 
@@ -579,19 +597,12 @@ DimPlot(sample, reduction = "pca")
 
 ```
 
+MAKE SURE TO SAVE your sample so we can use it later tomorrow. 
 
+```{r}
 # Finally save the sample object using the saveRDS function to ensure that we can load it later in the other documents
 saveRDS(object = sample, "../sample_processed.RDS")
 ```
-
-After this process, we have a new `seurat_clusters` column in our `meta.data` slot.
-Also, this is our new active identity!
-
-> 🧭✨ Task: How many clusters did we find?
-
-> ⌨🔥 Exercise: Plot the PC1 vs. PC2 again, with the newest identities.
-
-<!-- NOTE: The [upcoming v5](https://doi.org/10.1101/2022.02.24.481684) of Seurat will include a new clustering method [(specifically designed for handling data sets with the number of cells in the order of millions.)](https://satijalab.org/seurat/articles/seurat5_sketch_analysis.html) -->
 
 # End
 

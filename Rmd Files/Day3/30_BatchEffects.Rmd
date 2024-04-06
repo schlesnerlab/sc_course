@@ -212,11 +212,11 @@ We can also compare the distribution of cell tech labels before and after integr
 
 > ⌨🔥 Exercise: plot gene expression after integration
 >
-> You have previously plotted the expression of a DE gene between the sequencing technologies on the dataset before integration.
-> Repeat the violin and the feature plot for the dataset after integration.
+>
+> Repeat the violin and the feature plot for the dataset after integration for a gene of choice. 
 > What has changed, what hasn't, and why?
 
-Here's our proposed solution:
+
 ```{r}
 do_FeaturePlot(merged_seurat, features = "", reduction = "umap_harmony")
 
@@ -231,7 +231,7 @@ We can now appreciate that cells highly expressing this gene are distributed ove
 Note that the mixing with the cells negative for this marker is imperfect, but such is the result of the integration for this dataset.
 
 Let's ascertain ourselves that the expression of the celltype markers is behaving as expected after integration.
-For this purpose, let's plot the expression of the alpha cell marker gen "GCG".
+Let plot 
 
 ```{r marker_after_umap,fig.width=6,fig.height=10}
 
