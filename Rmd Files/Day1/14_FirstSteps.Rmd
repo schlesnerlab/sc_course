@@ -126,7 +126,7 @@ sample_name <- "OE0145-IDH_NCH6341" # Name of the sample.
 
 # Load samples.
 mt_pattern <- "^MT-"
-sample_path <- "/omics/groups/OE0436/internal/heyer/scourse/sc_course/data/filtered_feature_bc_matrix" # Path to where the count matrix from cellranger (either filtered or raw, your choice) is located.
+sample_path <- "/vol/data/course_data/data/filtered_feature_bc_matrix" # Path to where the count matrix from cellranger (either filtered or raw, your choice) is located.
 
 
 # Read the count matrix and generate a Seurat object.
@@ -134,10 +134,7 @@ sample <- Seurat::Read10X(data.dir = sample_path)  #
 sample <- Seurat::CreateSeuratObject(sample, project = sample_name, min.cells = 3, min.features = 200)
 
 
-# Compute percentage of mitochondrial RNA in the cells.
-sample[["percent.mt"]] <- Seurat::PercentageFeatureSet(object = sample,
-                                                       assay = "RNA",
-                                                       pattern = mt_pattern)
+
 
 ```
 
@@ -175,6 +172,12 @@ pheatmap::pheatmap(log10(sample@assays$RNA$counts[1:500, 1:200] + 1),
 > Hint: `rowSums()` and `sort`.
 
 > ⌨🔥 Exercise: Plot the histogram of counts for the previous top gene over all cells
+
+```{r acces counts}
+sample@assays$RNA@layers$counts 
+
+```
+
 
 # Seurat Object
 >  **Note:** usually on any data science context, we refer to our columns as features.
@@ -304,13 +307,14 @@ In this case, based on the previous Violin plots, we'll use the following criter
 
 > Excericise:
 > Based on the plots above -> Choose your cutoffs
+
 ```{r filter, echo=FALSE}
 
 # Perform QC on the sample.
 # Get cutoffs.
-counts_lower_cutoff <-  # Minimum amount of UMIs per cell.
-genes_lower_cutoff <-  # Minimum amount of genes per cell.
-mito_higher_cutoff <-  # Maximum amount of mitochondrial RNA per cell.
+counts_lower_cutoff <- 1000 # Minimum amount of UMIs per cell.
+genes_lower_cutoff <- 500 # Minimum amount of genes per cell.
+mito_higher_cutoff <- 0.05 # Maximum amount of mitochondrial RNA per cell.
 
 # Generate the first subset.
 count_mask <- sample$nCount_RNA > counts_lower_cutoff
