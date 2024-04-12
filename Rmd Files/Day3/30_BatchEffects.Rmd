@@ -97,7 +97,8 @@ Inspect the cell separation by cell type and by sequencing technology.
 do_DimPlot(sample)
 sample <- FindNeighbors(sample, reduction = "pca")
 
-sample <- RunUMAP(sample, dims = 1:10, reduction = "pca", reduction.name = "umap.pca")
+sample <- RunUMAP(sample, dims = 1:10, reduction = "pca", 
+                  reduction.name = "umap.pca")
 
 
 ```
