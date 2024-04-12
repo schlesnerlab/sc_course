@@ -1,0 +1,572 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Functional Analyses},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Functional Analyses}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{2}
+\tableofcontents
+}
+\hypertarget{setup}{%
+\section{Setup}\label{setup}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# .libPaths(new = "/scratch/local/rseurat/pkg{-}lib{-}4.1.3")}
+
+\FunctionTok{suppressMessages}\NormalTok{(\{}
+  \FunctionTok{library}\NormalTok{(decoupleR)}
+  \FunctionTok{library}\NormalTok{(tidyverse)}
+  \FunctionTok{library}\NormalTok{(Seurat)}
+  \FunctionTok{library}\NormalTok{(pheatmap)}
+  \FunctionTok{library}\NormalTok{(SCpubr)}
+\NormalTok{\})}
+
+
+\FunctionTok{set.seed}\NormalTok{(}\DecValTok{8211673}\NormalTok{)}
+
+\NormalTok{knitr}\SpecialCharTok{::}\NormalTok{opts\_chunk}\SpecialCharTok{$}\FunctionTok{set}\NormalTok{(}\AttributeTok{echo =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{format =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{out.width =} \StringTok{"100\%"}\NormalTok{)}
+
+
+\FunctionTok{options}\NormalTok{(}
+  \AttributeTok{parallelly.fork.enable =} \ConstantTok{FALSE}\NormalTok{,}
+  \AttributeTok{future.globals.maxSize =} \DecValTok{8} \SpecialCharTok{*} \DecValTok{1024}\SpecialCharTok{\^{}}\DecValTok{2} \SpecialCharTok{*} \DecValTok{1000}
+\NormalTok{)}
+
+\FunctionTok{plan}\NormalTok{(}\StringTok{"multicore"}\NormalTok{, }\AttributeTok{workers =} \DecValTok{8}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## work directory:  /omics/groups/OE0436/internal/heyer/scourse/sc_course/Rmd Files/Day2
+\end{verbatim}
+
+\begin{verbatim}
+## library path(s):  /omics/groups/OE0436/internal/heyer/scourse/sc_course/renv/library/R-4.3/x86_64-pc-linux-gnu /home/heyer/.cache/R/renv/sandbox/R-4.3/x86_64-pc-linux-gnu/587c2cfa
+\end{verbatim}
+
+\hypertarget{load-data}{%
+\section{Load Data}\label{load-data}}
+
+We'll be working with the data from our past notebook (``First steps''),
+let's quickly re-load and re-process again:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{Read10X}\NormalTok{(}\AttributeTok{data.dir =} \StringTok{"./datasets/filtered\_gene\_bc\_matrices/hg19/"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{CreateSeuratObject}\NormalTok{(}\AttributeTok{counts =}\NormalTok{ ., }\AttributeTok{project =} \StringTok{"pbmc3k"}\NormalTok{, }\AttributeTok{min.cells =} \DecValTok{3}\NormalTok{, }\AttributeTok{min.features =} \DecValTok{200}\NormalTok{)}
+
+\NormalTok{pbmc[[}\StringTok{"percent.mt"}\NormalTok{]] }\OtherTok{\textless{}{-}} \FunctionTok{PercentageFeatureSet}\NormalTok{(pbmc, }\AttributeTok{pattern =} \StringTok{"\^{}MT{-}"}\NormalTok{)}
+
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{subset}\NormalTok{(pbmc, }\AttributeTok{subset =}\NormalTok{ nFeature\_RNA }\SpecialCharTok{\textgreater{}} \DecValTok{200} \SpecialCharTok{\&}\NormalTok{ nFeature\_RNA }\SpecialCharTok{\textless{}} \DecValTok{2500} \SpecialCharTok{\&}\NormalTok{ percent.mt }\SpecialCharTok{\textless{}} \DecValTok{5}\NormalTok{)}
+
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{NormalizeData}\NormalTok{(pbmc, }\AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
+
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{FindVariableFeatures}\NormalTok{(pbmc, }\AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
+
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{ScaleData}\NormalTok{(pbmc, }\AttributeTok{features =} \FunctionTok{rownames}\NormalTok{(pbmc), }\AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
+
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{RunPCA}\NormalTok{(pbmc, }\AttributeTok{features =} \FunctionTok{VariableFeatures}\NormalTok{(pbmc), }\AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
+
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{FindNeighbors}\NormalTok{(pbmc, }\AttributeTok{dims =} \FunctionTok{seq\_len}\NormalTok{(}\DecValTok{10}\NormalTok{), }\AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
+
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{FindClusters}\NormalTok{(pbmc, }\AttributeTok{resolution =} \FloatTok{0.5}\NormalTok{, }\AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
+
+\NormalTok{pbmc }\OtherTok{\textless{}{-}} \FunctionTok{RunUMAP}\NormalTok{(pbmc, }\AttributeTok{dims =} \FunctionTok{seq\_len}\NormalTok{(}\DecValTok{10}\NormalTok{), }\AttributeTok{verbose =} \ConstantTok{FALSE}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Next, we do our between-clusters DE analysis:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sample }\OtherTok{\textless{}{-}} \FunctionTok{readRDS}\NormalTok{(}\StringTok{"../sample\_processed.RDS"}\NormalTok{)}
+\NormalTok{markers.between.clusters }\OtherTok{\textless{}{-}} \FunctionTok{FindAllMarkers}\NormalTok{(}
+\NormalTok{  sample,}
+  \AttributeTok{test.use =} \StringTok{"wilcox"}\NormalTok{,}
+  \AttributeTok{logfc.threshold =} \FloatTok{0.5}\NormalTok{,}
+  \AttributeTok{min.pct =} \FloatTok{0.3}\NormalTok{,}
+  \AttributeTok{only.pos =} \ConstantTok{TRUE}\NormalTok{,}
+  \AttributeTok{densify =} \ConstantTok{TRUE}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Calculating cluster 0
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 1
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 2
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 3
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 4
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 5
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 6
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 7
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 8
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 9
+\end{verbatim}
+
+\begin{verbatim}
+## Calculating cluster 10
+\end{verbatim}
+
+\hypertarget{functional-enrichment-analysis}{%
+\section{Functional Enrichment
+Analysis}\label{functional-enrichment-analysis}}
+
+These methods have first been used for microarrays, and aim to draw
+conclusions ranked gene list from RNAseq experiments, scRNA, or any
+other OMICS screen. There are a number of tools and approaches - here we
+will focus only one common and practical approach.
+
+For more information, see:
+\href{https://yulab-smu.top/biomedical-knowledge-mining-book/clusterProfiler-dplyr.html}{clusterProfiler}.
+
+The aim is to draw conclusions as to what's the functional implications
+that we may be able to derive given a list of genes. To this end, we'd
+start with such list and then consult databases for the annotations.
+With this data, we can come up with scores to measure level of
+association. A gene set is an unordered collection of genes that are
+functionally related.
+
+\hypertarget{gene-ontology}{%
+\subsection{Gene Ontology}\label{gene-ontology}}
+
+\href{http://www.geneontology.org/}{GO Terms} are semantic
+representations in a curated database that defines concepts/classes used
+to describe gene function, and relationships between these concepts. GO
+terms are organized in a directed acyclic graph, where edges between
+terms represent parent-child relationship. It classifies functions along
+three aspects:
+
+\begin{itemize}
+\tightlist
+\item
+  MF: Molecular Function, molecular activities of gene products
+\item
+  CC: Cellular Compartment, where gene products are active
+\item
+  BP: Biological Processes, pathways and larger processes made up of the
+  activities of multiple gene products
+\end{itemize}
+
+\hypertarget{enrichr}{%
+\subsection{enrichR}\label{enrichr}}
+
+The package is already loaded. But we need to select which databases to
+connect. There are more than 200 databases available, you can get a data
+frame with details of these using \texttt{listEnrichrDbs()}. For this
+and the following to work you need a working internet connection.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{decoupleR}\SpecialCharTok{::}\FunctionTok{get\_resource}\NormalTok{(}\StringTok{"PanglaoDB"}\NormalTok{) }\OtherTok{{-}\textgreater{}}\NormalTok{ panglao\_data}
+
+\NormalTok{panglao\_data }\SpecialCharTok{\%\textgreater{}\%}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{mutate}\NormalTok{(}\AttributeTok{human =} \FunctionTok{as.logical}\NormalTok{(human)) }\SpecialCharTok{\%\textgreater{}\%}\NormalTok{dplyr}\SpecialCharTok{::}\FunctionTok{filter}\NormalTok{(human) }\SpecialCharTok{\%\textgreater{}\%}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{mutate}\NormalTok{(}\AttributeTok{canonical\_marker =} \FunctionTok{as.logical}\NormalTok{(canonical\_marker)) }\SpecialCharTok{\%\textgreater{}\%}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{filter}\NormalTok{(canonical\_marker) }\SpecialCharTok{\%\textgreater{}\%}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{filter}\NormalTok{(}\StringTok{"human\_sensitivity"} \SpecialCharTok{\textgreater{}} \FloatTok{0.5}\NormalTok{) }\OtherTok{{-}\textgreater{}}\NormalTok{ panglao\_human\_marker}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mat }\OtherTok{\textless{}{-}} \FunctionTok{as.matrix}\NormalTok{(sample}\SpecialCharTok{@}\NormalTok{assays}\SpecialCharTok{$}\NormalTok{RNA}\SpecialCharTok{$}\NormalTok{data)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in asMethod(object): sparse->dense coercion: allocating vector of size 2.1 GiB
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{panglao\_human\_marker}\OtherTok{\textless{}{-}}\NormalTok{ panglao\_human\_marker[}\SpecialCharTok{!}\FunctionTok{duplicated}\NormalTok{(panglao\_human\_marker[,}\FunctionTok{c}\NormalTok{(}\StringTok{"cell\_type"}\NormalTok{, }\StringTok{"genesymbol"}\NormalTok{)]),]}
+\NormalTok{ora\_enrich }\OtherTok{\textless{}{-}}\NormalTok{ decoupleR}\SpecialCharTok{::}\FunctionTok{run\_aucell}\NormalTok{(}
+    \AttributeTok{mat=}\NormalTok{mat,}
+    \AttributeTok{network=}\NormalTok{panglao\_human\_marker,}
+    \AttributeTok{.source=}\StringTok{\textquotesingle{}cell\_type\textquotesingle{}}\NormalTok{,}
+    \AttributeTok{.target=}\StringTok{\textquotesingle{}genesymbol\textquotesingle{}}\NormalTok{,}
+    \AttributeTok{minsize=}\DecValTok{3}\NormalTok{,}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in .AUCell_buildRankings(exprMat = exprMat, featureType = featureType, : nCores is no longer used. It will be
+## deprecated in the next AUCell version.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sample[[}\StringTok{"panglao\_aucell"}\NormalTok{]] }\OtherTok{\textless{}{-}}\NormalTok{   ora\_enrich }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_wider}\NormalTok{(}\AttributeTok{id\_cols =} \StringTok{\textquotesingle{}source\textquotesingle{}}\NormalTok{, }\AttributeTok{names\_from =} \StringTok{\textquotesingle{}condition\textquotesingle{}}\NormalTok{,}
+              \AttributeTok{values\_from =} \StringTok{\textquotesingle{}score\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{column\_to\_rownames}\NormalTok{(}\StringTok{\textquotesingle{}source\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  Seurat}\SpecialCharTok{::}\FunctionTok{CreateAssayObject}\NormalTok{(.)}
+\CommentTok{\# Scale the data}
+\NormalTok{sample }\OtherTok{\textless{}{-}} \FunctionTok{ScaleData}\NormalTok{(sample, }\AttributeTok{assay =} \StringTok{"panglao\_aucell"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Centering and scaling data matrix
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sample}\SpecialCharTok{@}\NormalTok{assays}\SpecialCharTok{$}\NormalTok{panglao\_ora}\SpecialCharTok{$}\NormalTok{data }\OtherTok{\textless{}{-}}\NormalTok{ sample}\SpecialCharTok{@}\NormalTok{assays}\SpecialCharTok{$}\NormalTok{panglao\_ora}\SpecialCharTok{$}\NormalTok{scale.data}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{n\_tfs }\OtherTok{\textless{}{-}} \DecValTok{3}
+\CommentTok{\# Extract activities from object as a long dataframe}
+\NormalTok{df }\OtherTok{\textless{}{-}} \FunctionTok{t}\NormalTok{(}\FunctionTok{as.matrix}\NormalTok{(sample}\SpecialCharTok{@}\NormalTok{assays}\SpecialCharTok{$}\NormalTok{panglao\_aucell}\SpecialCharTok{@}\NormalTok{scale.data)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{as.data.frame}\NormalTok{() }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{mutate}\NormalTok{(}\AttributeTok{cluster =} \FunctionTok{Idents}\NormalTok{(sample)) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_longer}\NormalTok{(}\AttributeTok{cols =} \SpecialCharTok{{-}}\NormalTok{cluster, }\AttributeTok{names\_to =} \StringTok{"source"}\NormalTok{, }\AttributeTok{values\_to =} \StringTok{"score"}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{group\_by}\NormalTok{(cluster, source) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{summarise}\NormalTok{(}\AttributeTok{mean =} \FunctionTok{mean}\NormalTok{(score))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## `summarise()` has grouped output by 'cluster'. You can override using the `.groups` argument.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{top\_3\_cell\_types }\OtherTok{\textless{}{-}}\NormalTok{ df }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{group\_by}\NormalTok{(cluster) }\SpecialCharTok{\%\textgreater{}\%}
+    \FunctionTok{top\_n}\NormalTok{(}\DecValTok{3}\NormalTok{, mean)}
+
+\NormalTok{all\_top\_cell\_types }\OtherTok{\textless{}{-}}\NormalTok{ top\_3\_cell\_types }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{pull}\NormalTok{(source) }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{unique}\NormalTok{()}
+
+\NormalTok{top\_acts\_mat }\OtherTok{\textless{}{-}}\NormalTok{ df }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{filter}\NormalTok{(source }\SpecialCharTok{\%in\%}\NormalTok{ all\_top\_cell\_types) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_wider}\NormalTok{(}\AttributeTok{id\_cols =} \StringTok{\textquotesingle{}cluster\textquotesingle{}}\NormalTok{, }\AttributeTok{names\_from =} \StringTok{\textquotesingle{}source\textquotesingle{}}\NormalTok{,}
+              \AttributeTok{values\_from =} \StringTok{\textquotesingle{}mean\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{column\_to\_rownames}\NormalTok{(}\StringTok{\textquotesingle{}cluster\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{as.matrix}\NormalTok{()}
+
+\CommentTok{\# Choose color palette}
+\NormalTok{palette\_length }\OtherTok{=} \DecValTok{100}
+\NormalTok{my\_color }\OtherTok{=} \FunctionTok{colorRampPalette}\NormalTok{(}\FunctionTok{c}\NormalTok{(}\StringTok{"Darkblue"}\NormalTok{, }\StringTok{"white"}\NormalTok{,}\StringTok{"red"}\NormalTok{))(palette\_length)}
+
+\NormalTok{my\_breaks }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\FunctionTok{seq}\NormalTok{(}\SpecialCharTok{{-}}\DecValTok{3}\NormalTok{, }\DecValTok{0}\NormalTok{, }\AttributeTok{length.out=}\FunctionTok{ceiling}\NormalTok{(palette\_length}\SpecialCharTok{/}\DecValTok{2}\NormalTok{) }\SpecialCharTok{+} \DecValTok{1}\NormalTok{),}
+               \FunctionTok{seq}\NormalTok{(}\FloatTok{0.05}\NormalTok{, }\DecValTok{3}\NormalTok{, }\AttributeTok{length.out=}\FunctionTok{floor}\NormalTok{(palette\_length}\SpecialCharTok{/}\DecValTok{2}\NormalTok{)))}
+
+\CommentTok{\# Plot}
+\FunctionTok{pheatmap}\NormalTok{(top\_acts\_mat, }\AttributeTok{border\_color =} \ConstantTok{NA}\NormalTok{,}\AttributeTok{scale =} \StringTok{"row"}\NormalTok{, }\AttributeTok{color=}\NormalTok{my\_color, }\AttributeTok{breaks =}\NormalTok{ my\_breaks)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[width=1\linewidth]{23_Enrich_files/figure-latex/unnamed-chunk-29-1}
+
+\begin{quote}
+⌨🔥 Exercise(s):
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Understand the format and interpret the output \texttt{result.1}.
+\item
+  What is the most significantly enriched molecular function? which
+  genes are the base for it?
+\item
+  Would you get the same result if you changed the number of marker
+  genes in the input? Try it out.
+\end{enumerate}
+\end{quote}
+
+We can also produce nice graphical summaries:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{net }\OtherTok{\textless{}{-}} \FunctionTok{get\_progeny}\NormalTok{(}\AttributeTok{organism =} \StringTok{\textquotesingle{}human\textquotesingle{}}\NormalTok{, }\AttributeTok{top =} \DecValTok{500}\NormalTok{)}
+\NormalTok{net}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 7,000 x 4
+##    source   target  weight  p_value
+##    <chr>    <chr>    <dbl>    <dbl>
+##  1 Androgen TMPRSS2  11.5  2.38e-47
+##  2 Androgen NKX3-1   10.6  2.21e-44
+##  3 Androgen MBOAT2   10.5  4.63e-44
+##  4 Androgen KLK2     10.2  1.94e-40
+##  5 Androgen SARG     11.4  2.79e-40
+##  6 Androgen SLC38A4   7.36 1.25e-39
+##  7 Androgen MTMR9     6.13 2.53e-38
+##  8 Androgen ZBTB16   10.6  1.57e-36
+##  9 Androgen KCNN2     9.47 7.71e-36
+## 10 Androgen OPRK1    -5.63 1.11e-35
+## # i 6,990 more rows
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mat }\OtherTok{\textless{}{-}} \FunctionTok{as.matrix}\NormalTok{(sample}\SpecialCharTok{@}\NormalTok{assays}\SpecialCharTok{$}\NormalTok{RNA}\SpecialCharTok{@}\NormalTok{data)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in asMethod(object): sparse->dense coercion: allocating vector of size 2.1 GiB
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Run mlm}
+\NormalTok{acts }\OtherTok{\textless{}{-}} \FunctionTok{run\_mlm}\NormalTok{(}\AttributeTok{mat=}\NormalTok{mat, }\AttributeTok{network =}\NormalTok{net, }\AttributeTok{.source=}\StringTok{\textquotesingle{}source\textquotesingle{}}\NormalTok{, }\AttributeTok{.target=}\StringTok{\textquotesingle{}target\textquotesingle{}}\NormalTok{,}
+                \AttributeTok{.mor=}\StringTok{\textquotesingle{}weight\textquotesingle{}}\NormalTok{, }\AttributeTok{minsize =} \DecValTok{5}\NormalTok{)}
+\NormalTok{acts}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## # A tibble: 116,004 x 5
+##    statistic source   condition                              score p_value
+##    <chr>     <chr>    <chr>                                  <dbl>   <dbl>
+##  1 mlm       Androgen OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1  1.59  0.111  
+##  2 mlm       EGFR     OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1 -2.27  0.0233 
+##  3 mlm       Estrogen OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1  1.71  0.0866 
+##  4 mlm       Hypoxia  OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1  2.59  0.00949
+##  5 mlm       JAK-STAT OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1 -1.68  0.0934 
+##  6 mlm       MAPK     OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1 -1.99  0.0467 
+##  7 mlm       NFkB     OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1 -0.883 0.377  
+##  8 mlm       PI3K     OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1 -2.55  0.0108 
+##  9 mlm       TGFb     OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1  1.19  0.234  
+## 10 mlm       TNFa     OE0145-IDH_NCH6341_AAACCCAAGGTCGTGA-1  0.355 0.723  
+## # i 115,994 more rows
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Extract mlm and store it in pathwaysmlm in data}
+\NormalTok{sample[[}\StringTok{\textquotesingle{}pathwaysmlm\textquotesingle{}}\NormalTok{]] }\OtherTok{\textless{}{-}}\NormalTok{ acts }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_wider}\NormalTok{(}\AttributeTok{id\_cols =} \StringTok{\textquotesingle{}source\textquotesingle{}}\NormalTok{, }\AttributeTok{names\_from =} \StringTok{\textquotesingle{}condition\textquotesingle{}}\NormalTok{,}
+              \AttributeTok{values\_from =} \StringTok{\textquotesingle{}score\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{column\_to\_rownames}\NormalTok{(}\StringTok{\textquotesingle{}source\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  Seurat}\SpecialCharTok{::}\FunctionTok{CreateAssayObject}\NormalTok{(.)}
+
+\CommentTok{\# Change assay}
+\FunctionTok{DefaultAssay}\NormalTok{(}\AttributeTok{object =}\NormalTok{ sample) }\OtherTok{\textless{}{-}} \StringTok{"pathwaysmlm"}
+
+\CommentTok{\# Scale the data}
+\NormalTok{sample }\OtherTok{\textless{}{-}} \FunctionTok{ScaleData}\NormalTok{(sample, }\AttributeTok{assay =} \StringTok{"pathwaysmlm"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Centering and scaling data matrix
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sample}\SpecialCharTok{@}\NormalTok{assays}\SpecialCharTok{$}\NormalTok{pathwaysmlm}\SpecialCharTok{@}\NormalTok{data }\OtherTok{\textless{}{-}}\NormalTok{ sample}\SpecialCharTok{@}\NormalTok{assays}\SpecialCharTok{$}\NormalTok{pathwaysmlm}\SpecialCharTok{@}\NormalTok{scale.data}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{p1 }\OtherTok{\textless{}{-}} \FunctionTok{DimPlot}\NormalTok{(sample, }\AttributeTok{reduction =} \StringTok{"umap"}\NormalTok{, }\AttributeTok{label =} \ConstantTok{TRUE}\NormalTok{, }\AttributeTok{pt.size =} \FloatTok{0.5}\NormalTok{) }\SpecialCharTok{+} 
+  \FunctionTok{NoLegend}\NormalTok{() }\SpecialCharTok{+} \FunctionTok{ggtitle}\NormalTok{(}\StringTok{\textquotesingle{}Cell types\textquotesingle{}}\NormalTok{)}
+\NormalTok{p2 }\OtherTok{\textless{}{-}}\NormalTok{ (}\FunctionTok{do\_NebulosaPlot}\NormalTok{(sample, }\AttributeTok{features =} \FunctionTok{c}\NormalTok{(}\StringTok{"MAPK"}\NormalTok{),) }\SpecialCharTok{\&} 
+  \FunctionTok{scale\_colour\_gradient2}\NormalTok{(}\AttributeTok{low =} \StringTok{\textquotesingle{}blue\textquotesingle{}}\NormalTok{, }\AttributeTok{mid =} \StringTok{\textquotesingle{}white\textquotesingle{}}\NormalTok{, }\AttributeTok{high =} \StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{)) }\SpecialCharTok{+}
+  \FunctionTok{ggtitle}\NormalTok{(}\StringTok{\textquotesingle{}MAPK activity\textquotesingle{}}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in ks.defaults(x = x, w = w, binned = binned, bgridsize = bgridsize, : Weights don't sum to sample size - they have been scaled accordingly
+\end{verbatim}
+
+\begin{verbatim}
+## Scale for colour is already present.
+## Adding another scale for colour, which will replace the existing scale.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{p1 }\SpecialCharTok{|}\NormalTok{ p2}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[width=1\linewidth]{23_Enrich_files/figure-latex/unnamed-chunk-32-1}
+\#\#\# Compare with results from Publication
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{excel\_data }\OtherTok{\textless{}{-}}\NormalTok{ readxl}\SpecialCharTok{::}\FunctionTok{read\_excel}\NormalTok{(}\StringTok{"../1{-}s2.0{-}S2666379123004263{-}mmc3.xlsx"}\NormalTok{, }\AttributeTok{sheet =} \StringTok{"OD top50 markers"}\NormalTok{,}\AttributeTok{skip =} \DecValTok{1}\NormalTok{)}
+
+\NormalTok{excel\_data }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{pivot\_longer}\NormalTok{(}\AttributeTok{cols =} \FunctionTok{everything}\NormalTok{()) }\OtherTok{{-}\textgreater{}}\NormalTok{ excel\_long}
+
+\NormalTok{acts\_paper }\OtherTok{\textless{}{-}}\NormalTok{ decoupleR}\SpecialCharTok{::}\FunctionTok{run\_aucell}\NormalTok{(mat, }\AttributeTok{network =}\NormalTok{ excel\_long, }\AttributeTok{.source =} \StringTok{"name"}\NormalTok{, }\AttributeTok{.target =} \StringTok{"value"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in .AUCell_buildRankings(exprMat = exprMat, featureType = featureType, : nCores is no longer used. It will be
+## deprecated in the next AUCell version.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Extract mlm and store it in pathwaysmlm in data}
+\NormalTok{sample[[}\StringTok{\textquotesingle{}paper\_aucell\textquotesingle{}}\NormalTok{]] }\OtherTok{\textless{}{-}}\NormalTok{ acts\_paper }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{pivot\_wider}\NormalTok{(}\AttributeTok{id\_cols =} \StringTok{\textquotesingle{}source\textquotesingle{}}\NormalTok{, }\AttributeTok{names\_from =} \StringTok{\textquotesingle{}condition\textquotesingle{}}\NormalTok{,}
+              \AttributeTok{values\_from =} \StringTok{\textquotesingle{}score\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+  \FunctionTok{column\_to\_rownames}\NormalTok{(}\StringTok{\textquotesingle{}source\textquotesingle{}}\NormalTok{) }\SpecialCharTok{\%\textgreater{}\%}
+\NormalTok{  Seurat}\SpecialCharTok{::}\FunctionTok{CreateAssayObject}\NormalTok{(.)}
+
+\NormalTok{SCpubr}\SpecialCharTok{::}\FunctionTok{do\_ViolinPlot}\NormalTok{(sample, }\AttributeTok{features =} \FunctionTok{c}\NormalTok{(}\StringTok{"OPC{-}like"}\NormalTok{, }\StringTok{"Endothelial"}\NormalTok{), }\AttributeTok{assay =} \StringTok{"paper\_aucell"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[width=1\linewidth]{23_Enrich_files/figure-latex/unnamed-chunk-33-1}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{SCpubr}\SpecialCharTok{::}\FunctionTok{do\_FeaturePlot}\NormalTok{(sample, }\AttributeTok{assay =} \StringTok{"paper\_aucell"}\NormalTok{, }\AttributeTok{features =}\StringTok{"Astro{-}like"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[width=1\linewidth]{23_Enrich_files/figure-latex/unnamed-chunk-33-2}
+
+\end{document}
