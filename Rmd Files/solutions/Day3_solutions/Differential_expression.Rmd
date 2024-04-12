@@ -1,0 +1,163 @@
+---
+title: "Differential Expression testing"
+output: html_document
+date: "2024-03-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(Seurat)
+library(SCpubr)
+```
+
+## Differential gene expression between samples and across conditions
+
+In some cases we will have access to datasets of many single cell samples and we want to compare the expression between these. 
+While we can use Integration analysis and Clustering to deal with batch effects, we should not use `FindMarkers` to compare the expression between samples.
+Because `FindMarkers` is designed to compare the expression between clusters, we do not model effects introduced by each sample in the test. 
+
+To date one of the simplest and effective ways to compare gene expression is to pseudobulk the data.
+This means that we aggregate counts from all cells from a single sample for each cell type and then compare the expression between samples.
+
+The newest version of Seurat allows us to do this with the `AggregateExpression` function.
+
+```{r cars}
+sample <- readRDS("../../data/GSE205771/GSM6226122_oligodendroglioma_seurat_object.rds")
+sample$orig.ident %>% unique()
+
+paste0(sample$orig.ident, "_", sample$grade) %>% unique()
+
+do_DimPlot(sample, reduction = "umap")
+```
+
+## Aggergate Expression and run test
+
+The code below shows how to run this analysis for a given cell Type in the dataset.
+Note, that in the group.by arguemtn we that we are grouping by:
+- grade -> Tumor grade of the patient
+- orig.ident -> The original sample ID of the patient
+- New_NMF_labelling -> The cell type of the cell
+
+After aggregation we can run FindMarkers using "DESeq2" as a test since after Pseudobulking 
+are data can be treated as Bulk RNA-seq data.
+
+```{r pressure, echo=FALSE}
+pseudobulked_seurat <- AggregateExpression(sample, assays = "RNA", return.seurat = T, group.by = c("grade", "orig.ident", "New_NMF_labelling"))
+pseudobulked_seurat$celltype.grade <- paste(pseudobulked_seurat$New_NMF_labelling, pseudobulked_seurat$grade, 
+                                            sep = "_")
+tail(Cells(pseudobulked_seurat))
+
+Idents(pseudobulked_seurat) <- "celltype.grade"
+
+cell_type <- "Cycling-like"
+bulk_celltype_de <- FindMarkers(object = pseudobulked_seurat, 
+                         ident.1 = glue::glue("{cell_type}_g2"), 
+                         ident.2 = glue::glue("{cell_type}_g3"),
+                         test.use = "DESeq2")
+head(bulk_celltype_de, n = 15)
+```
+
+For comparison we also do differential expression at a single cell level: 
+
+```{r}
+sample$celltype_grade <- paste(sample$New_NMF_labelling, sample$grade, sep = "_")
+Idents(sample) <- "celltype_grade"
+celltype_de <- FindMarkers(sample, ident.1 = glue::glue("{cell_type}_2"),
+                                    ident.2 = glue::glue("{cell_type}_3"),
+                                    verbose = FALSE)
+head(celltype_de, n = 10)
+```
+
+Now we can compare the results:
+
+
+> ⌨🔥 Exercise:  compare the results between the groups hint (Look at p-value and LogFoldChanges between groups)
+We run into Similar problems as before 
+> Run this analysis for many cell types (or design a loop to run it for each cell type ?)
+>
+> Organize and look at your results. 
+> How would you visuliaze your results?
+
+Volcanoplots between logFC and p-values allow assessment of significance and effect
+size of results. Alternative is that we check the Featureplots of the Top genes
+
+
+```{r}
+sample$New_NMF_labelling %>% unique -> cell_types
+
+cell_types <- head(cell_types, -1) # drop last entry
+de_res <- list()
+for (cell_t in cell_types) {
+  cell_t
+  celltype_de <- FindMarkers(sample, ident.1 = glue::glue("{cell_t}_3"),
+                                    ident.2 = glue::glue("{cell_t}_2"),
+                                    verbose = FALSE)
+  de_res[[cell_t]] <- celltype_de
+  celltype_de$label <- rownames(celltype_de)
+  celltype_de$label <- ifelse(1:nrow(celltype_de) <= 10, celltype_de$label, "")
+  ggplot(celltype_de, aes(x=avg_log2FC, y = -log10(p_val_adj), label = label)) + geom_point() +
+    geom_label_repel()
+}
+```
+
+
+As a propsed way to identify consistently changing genes, we can look at Genes
+that are differentially expressed in both the single cell and pseudobulk level.
+
+```{r}
+# compare the DE P-values between the single-cell level and the pseudobulk level results
+names(bulk_celltype_de) <- paste0(names(bulk_celltype_de), ".bulk")
+bulk_celltype_de$gene <- rownames(bulk_celltype_de)
+
+names(celltype_de) <- paste0(names(celltype_de), ".sc")
+celltype_de$gene <- rownames(celltype_de)
+
+merge_dat <- merge(celltype_de, bulk_celltype_de, by = "gene")
+merge_dat <- merge_dat[order(merge_dat$p_val.bulk), ]
+
+# Number of genes that are marginally significant in both; marginally significant only in bulk; and marginally significant only in single-cell
+common <- merge_dat$gene[which(merge_dat$p_val.bulk < 0.05 & 
+                                merge_dat$p_val.sc < 0.05)]
+only_sc <- merge_dat$gene[which(merge_dat$p_val.bulk > 0.05 & 
+                                  merge_dat$p_val.sc < 0.05)]
+only_bulk <- merge_dat$gene[which(merge_dat$p_val.bulk < 0.05 & 
+                                    merge_dat$p_val.sc > 0.05)]
+print(paste0('# Common: ',length(common)))
+```
+
+> ⌨🔥 Exercise:  Visualize the results of the comparison between the single cell and pseudobulk level results
+> Which genes are conserved in DE expression which are not?
+> Visualize top differentially expressed genes in the original data (VlnPlot or UMAP featureplots)? What does this tell us?
+
+In This case we see barely any expression differences, which we can expect to a certain degree
+since the tumor grade shouldn't have a big influence on gene expression across samples. 
+
+
+```{r}
+SCpubr::do_ExpressionHeatmap(sample, features = common[1:20])
+
+SCpubr::do_ExpressionHeatmap(sample, features = only_sc[1:20])
+
+SCpubr::do_ExpressionHeatmap(sample, features = only_bulk[1:20])
+```
+
+
+```{r}
+do_FeaturePlot(sample, features = "CD36")
+sample$celltype.grade <- paste(sample$New_NMF_labelling, sample$grade, 
+                                            sep = "_")
+Idents(sample) <- "celltype.grade"
+celltype_de <- FindMarkers(sample, ident.1 = "Gradient_2", ident.2 = "Gradient_3", verbose = FALSE)
+
+VlnPlot(sample, features = "KCND2", idents = c("Gradient_2", "Gradient_3"), group.by = "grade") 
+```
+
+
+Lastly, there are a bunch of methods and packages for differential gene expression analysis.
+In Seurat alone there are 10 different methods to chose from. https://satijalab.org/seurat/reference/findmarkers
+Which test method you choose will depend on data structure and biological question. 
+The advantage of Pseudobulk analysis is that we avoid inflated False Positives due to the high number of cells. 
+
+
+Further reading: https://www.nature.com/articles/s41467-021-25960-2
+https://www.nature.com/articles/s41467-023-37126-3#Sec15
